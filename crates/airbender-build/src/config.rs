@@ -7,7 +7,6 @@ use crate::utils::{
     select_bin_name, sha256_file_hex, validate_app_name,
 };
 use crate::{Manifest, Profile, MANIFEST_FORMAT_VERSION};
-use airbender_core::manifest::write_manifest;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -82,7 +81,7 @@ impl BuildConfig {
             text_file: "app.text".to_string(),
             bin_sha256,
         };
-        write_manifest(&manifest_path, &manifest)?;
+        manifest.write_to_file(&manifest_path)?;
 
         Ok(DistArtifacts {
             dist_dir,

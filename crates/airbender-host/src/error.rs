@@ -1,42 +1,25 @@
-use core::fmt;
-
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum HostError {
-    Io(std::io::Error),
+    #[error("io error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("codec error: {0}")]
     Codec(airbender_codec::CodecError),
+    #[error("invalid manifest: {0}")]
     InvalidManifest(String),
+    #[error("simulator error: {0}")]
     Simulator(String),
+    #[error("transpiler error: {0}")]
     Transpiler(String),
+    #[error("prover error: {0}")]
     Prover(String),
+    #[error("verification error: {0}")]
     Verification(String),
 }
 
-impl fmt::Display for HostError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            HostError::Io(err) => write!(f, "io error: {err}"),
-            HostError::Codec(err) => write!(f, "codec error: {err}"),
-            HostError::InvalidManifest(err) => write!(f, "invalid manifest: {err}"),
-            HostError::Simulator(err) => write!(f, "simulator error: {err}"),
-            HostError::Transpiler(err) => write!(f, "transpiler error: {err}"),
-            HostError::Prover(err) => write!(f, "prover error: {err}"),
-            HostError::Verification(err) => write!(f, "verification error: {err}"),
-        }
-    }
-}
-
-impl std::error::Error for HostError {}
-
-impl From<std::io::Error> for HostError {
-    fn from(err: std::io::Error) -> Self {
-        HostError::Io(err)
-    }
-}
+pub type Result<T> = std::result::Result<T, HostError>;
 
 impl From<airbender_codec::CodecError> for HostError {
     fn from(err: airbender_codec::CodecError) -> Self {
-        HostError::Codec(err)
+        Self::Codec(err)
     }
 }
-
-pub type Result<T> = std::result::Result<T, HostError>;

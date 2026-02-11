@@ -41,59 +41,47 @@ pub struct Manifest {
     pub bin_sha256: String,
 }
 
-#[derive(Debug)]
+/// Errors returned by manifest read, write, and parse operations.
+#[derive(Debug, thiserror::Error)]
 pub enum ManifestError {
-    Io(std::io::Error),
-    Parse(toml::de::Error),
-    Serialize(toml::ser::Error),
+    #[error("io error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("failed to parse manifest: {0}")]
+    Parse(#[from] toml::de::Error),
+    #[error("failed to serialize manifest: {0}")]
+    Serialize(#[from] toml::ser::Error),
+    #[error("unsupported format_version {0}")]
     UnsupportedFormatVersion(u32),
 }
 
-impl std::fmt::Display for ManifestError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ManifestError::Io(err) => write!(f, "io error: {err}"),
-            ManifestError::Parse(err) => write!(f, "failed to parse manifest: {err}"),
-            ManifestError::Serialize(err) => write!(f, "failed to serialize manifest: {err}"),
-            ManifestError::UnsupportedFormatVersion(version) => {
-                write!(f, "unsupported format_version {version}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for ManifestError {}
-
-impl From<std::io::Error> for ManifestError {
-    fn from(err: std::io::Error) -> Self {
-        ManifestError::Io(err)
-    }
-}
-
-pub fn read_manifest(path: &Path) -> Result<Manifest, ManifestError> {
-    let content = fs::read_to_string(path)?;
-    parse_manifest(&content)
-}
-
-pub fn write_manifest(path: &Path, manifest: &Manifest) -> Result<(), ManifestError> {
-    let payload = manifest.to_toml()?;
-    fs::write(path, payload)?;
-    Ok(())
-}
-
-pub fn parse_manifest(content: &str) -> Result<Manifest, ManifestError> {
-    let manifest: Manifest = toml::from_str(content).map_err(ManifestError::Parse)?;
-    if manifest.format_version != MANIFEST_FORMAT_VERSION {
-        return Err(ManifestError::UnsupportedFormatVersion(
-            manifest.format_version,
-        ));
-    }
-    Ok(manifest)
-}
-
 impl Manifest {
+    /// Read a manifest from a TOML file.
+    pub fn read_from_file(path: &Path) -> Result<Self, ManifestError> {
+        let content = fs::read_to_string(path)?;
+        Self::parse(&content)
+    }
+
+    /// Write this manifest to a TOML file.
+    pub fn write_to_file(&self, path: &Path) -> Result<(), ManifestError> {
+        let payload = self.to_toml()?;
+        fs::write(path, payload)?;
+        Ok(())
+    }
+
+    /// Parse and validate a manifest from TOML text.
+    pub fn parse(content: &str) -> Result<Self, ManifestError> {
+        let manifest: Self = toml::from_str(content)?;
+        if manifest.format_version != MANIFEST_FORMAT_VERSION {
+            return Err(ManifestError::UnsupportedFormatVersion(
+                manifest.format_version,
+            ));
+        }
+        Ok(manifest)
+    }
+
+    /// Serialize this manifest to TOML text.
     pub fn to_toml(&self) -> Result<String, ManifestError> {
-        toml::to_string(self).map_err(ManifestError::Serialize)
+        Ok(toml::to_string(self)?)
     }
 }
 
@@ -123,7 +111,7 @@ mod tests {
         assert!(!toml.contains("app_bin"));
         assert!(!toml.contains("app_elf"));
         assert!(!toml.contains("app_text"));
-        let parsed = parse_manifest(&toml).expect("parse");
+        let parsed = Manifest::parse(&toml).expect("parse");
         assert_eq!(parsed, manifest);
     }
 
@@ -143,7 +131,7 @@ mod tests {
         };
         manifest.format_version += 1;
         let toml = manifest.to_toml().expect("serialize");
-        let err = parse_manifest(&toml).expect_err("error");
+        let err = Manifest::parse(&toml).expect_err("error");
         assert!(matches!(err, ManifestError::UnsupportedFormatVersion(_)));
     }
 
@@ -158,7 +146,7 @@ app_bin = "app.bin"
 app_elf = "app.elf"
 app_text = "app.text"
 "#;
-        let manifest = parse_manifest(legacy).expect("parse legacy manifest");
+        let manifest = Manifest::parse(legacy).expect("parse legacy manifest");
         assert_eq!(manifest.bin_file, "app.bin");
         assert_eq!(manifest.elf_file, "app.elf");
         assert_eq!(manifest.text_file, "app.text");

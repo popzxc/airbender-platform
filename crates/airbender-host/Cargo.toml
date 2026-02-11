@@ -18,4 +18,5 @@ execution_utils = { workspace = true, features = ["gpu_prover"] }
 gpu_prover = { workspace = true }
 riscv_transpiler = { workspace = true, features = ["jit"] }
 sha3 = { workspace = true }
+thiserror = { workspace = true }
 tracing = { workspace = true }

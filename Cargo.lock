@@ -91,6 +91,7 @@ name = "airbender-core"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "thiserror 2.0.18",
  "toml",
 ]
 
@@ -149,6 +150,7 @@ dependencies = [
  "riscv_transpiler",
  "serde",
  "sha3",
+ "thiserror 2.0.18",
  "tracing",
 ]
 

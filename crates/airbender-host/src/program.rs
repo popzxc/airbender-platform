@@ -21,7 +21,7 @@ impl Program {
     pub fn load(dist_dir: impl AsRef<Path>) -> Result<Self> {
         let dist_dir = dist_dir.as_ref().to_path_buf();
         let manifest_path = dist_dir.join("manifest.toml");
-        let manifest = airbender_core::manifest::read_manifest(&manifest_path)
+        let manifest = Manifest::read_from_file(&manifest_path)
             .map_err(|err| HostError::InvalidManifest(err.to_string()))?;
         if manifest.codec_version != airbender_codec::AIRBENDER_CODEC_V0 {
             return Err(HostError::InvalidManifest(format!(

@@ -12,3 +12,4 @@ categories.workspace = true
 [dependencies]
 serde = { workspace = true, features = ["derive", "std"] }
 toml = { workspace = true }
+thiserror = { workspace = true }
