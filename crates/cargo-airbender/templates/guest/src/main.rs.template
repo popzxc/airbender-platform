@@ -1,5 +1,4 @@
-#![no_std]
-#![no_main]
+__AIRBENDER_GUEST_ATTRIBUTES__
 
 use airbender::guest::read;
 

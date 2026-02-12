@@ -30,23 +30,34 @@ cargo install --git https://github.com/popzxc/airbender-platform --branch main c
 
 ## Hello World (Template Project)
 
-Create a new guest project:
+Create a new host+guest template project:
 
 ```sh
 cargo airbender new ./hello-airbender
 ```
 
+To generate a guest with `std` support enabled, use:
+
+```sh
+cargo airbender new ./hello-airbender --enable-std
+```
+
 By default, generated projects depend on `airbender-sdk` from this repository (`main` branch). You can override this with:
 
-- `--sdk-path <path>` for a local checkout
+- `--sdk-path <path>` for a local checkout (workspace root, `crates/`, or crate path)
 - `--sdk-version <version>` once published versions are available
+
+The template includes:
+
+- `guest/`: guest program (default: `no_std`; or `std` with `--enable-std`)
+- `host/`: host app that runs and optionally proves guest execution
 
 The generated guest reads a `u32` input and returns `value + 1`.
 
 Build the guest:
 
 ```sh
-cd hello-airbender
+cd hello-airbender/guest
 cargo airbender build
 ```
 
@@ -77,6 +88,14 @@ Generate and verify a proof:
 cargo airbender prove ./dist/app/app.bin --input ./input.hex --output ./proof.bin
 cargo airbender generate-vk ./dist/app/app.bin --output ./vk.bin
 cargo airbender verify-proof ./proof.bin --vk ./vk.bin
+```
+
+You can also run the generated host flow:
+
+```sh
+cd ../host
+cargo run
+cargo run -- --prove
 ```
 
 ## Prefer Full End-to-End Examples

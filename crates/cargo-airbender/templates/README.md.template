@@ -1,0 +1,28 @@
+# __AIRBENDER_PROJECT_NAME__
+
+This template contains:
+
+- `guest/`: Airbender guest program
+- `host/`: host-side runner/prover application
+
+## Quick Start
+
+Build guest artifacts:
+
+```sh
+cd guest
+cargo airbender build
+```
+
+Run host execution:
+
+```sh
+cd ../host
+cargo run
+```
+
+Run host execution + proof:
+
+```sh
+cargo run -- --prove
+```

@@ -10,7 +10,7 @@ pub const DEFAULT_GUEST_BUILD_STD_FEATURES: &str = "compiler-builtins-mem";
 
 pub const DEFAULT_GUEST_CC: &str = "clang";
 
-pub const DEFAULT_GUEST_TOOLCHAIN: &str = "nightly-2026-01-19";
+pub const DEFAULT_GUEST_TOOLCHAIN: &str = "nightly-2026-02-10";
 
 pub const DEFAULT_GUEST_RUSTFLAGS: &[&str] = &[
     "-C",

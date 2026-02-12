@@ -3,7 +3,6 @@
 #![allow(clippy::uninit_assumed_init)]
 #![allow(clippy::new_without_default)]
 #![feature(allocator_api)]
-#![feature(ptr_as_ref_unchecked)]
 
 #[allow(clippy::all)]
 #[allow(unused_imports, dead_code)]

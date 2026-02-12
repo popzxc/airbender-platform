@@ -1,0 +1,7 @@
+[package]
+name = "__AIRBENDER_PROJECT_NAME__-host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+airbender-host = { __AIRBENDER_HOST_DEP__ }

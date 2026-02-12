@@ -29,7 +29,7 @@ impl Cli {
 pub enum Commands {
     /// Build and package guest artifacts into dist/.
     Build(BuildArgs),
-    /// Create a new guest project from the template.
+    /// Create a new host + guest project from templates.
     New(NewArgs),
     /// Run app.bin with the simulator.
     Run(RunArgs),
@@ -78,6 +78,8 @@ pub struct NewArgs {
     pub path: PathBuf,
     #[arg(long)]
     pub name: Option<String>,
+    #[arg(long)]
+    pub enable_std: bool,
     #[arg(long, conflicts_with = "sdk_version")]
     pub sdk_path: Option<PathBuf>,
     #[arg(long, conflicts_with = "sdk_path")]
@@ -226,5 +228,22 @@ mod tests {
         let err = Cli::try_parse_from(["cargo-airbender", "build", "--features", "gpu"])
             .expect_err("parse should fail without -- forwarding separator");
         assert!(err.to_string().contains("--features"));
+    }
+
+    #[test]
+    fn parse_new_enable_std() {
+        let cli = Cli::parse_from([
+            "cargo-airbender",
+            "new",
+            "./hello-airbender",
+            "--enable-std",
+        ]);
+        match cli.command {
+            Commands::New(args) => {
+                assert_eq!(args.path, PathBuf::from("./hello-airbender"));
+                assert!(args.enable_std);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
     }
 }

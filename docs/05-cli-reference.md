@@ -49,7 +49,7 @@ dist/<app-name>/manifest.toml
 
 ## `cargo airbender new`
 
-Creates a new guest project from template files.
+Creates a new host+guest project template.
 
 ```sh
 cargo airbender new ./my-guest
@@ -58,13 +58,27 @@ cargo airbender new ./my-guest
 Options:
 
 - `--name <name>`: override package name
-- `--sdk-path <path>`: use local SDK path
+- `--enable-std`: generate guest with `airbender-sdk` `std` feature
+- `--sdk-path <path>`: use local SDK path (workspace root, `crates/`, or crate path)
 - `--sdk-version <version>`: use versioned SDK dependency
 
 Default behavior (when neither `--sdk-path` nor `--sdk-version` is provided):
 
 - generated project depends on `airbender-sdk` from
   `https://github.com/popzxc/airbender-platform` (branch `main`)
+
+Generated layout:
+
+```text
+<project>/
+  README.md
+  guest/
+    Cargo.toml
+    src/main.rs
+  host/
+    Cargo.toml
+    src/main.rs
+```
 
 ## `cargo airbender run`
 
