@@ -9,6 +9,10 @@ const DEFAULT_SDK_GIT_BRANCH: &str = "main";
 
 const TEMPLATE_FILES: &[(&str, &str)] = &[
     (
+        ".gitignore",
+        include_str!("../../templates/.gitignore.template"),
+    ),
+    (
         "README.md",
         include_str!("../../templates/README.md.template"),
     ),
@@ -381,6 +385,10 @@ mod tests {
         })
         .expect("create scaffold");
 
+        let root_readme =
+            fs::read_to_string(destination.join("README.md")).expect("read project root README");
+        let root_gitignore = fs::read_to_string(destination.join(".gitignore"))
+            .expect("read project root .gitignore");
         let guest_cargo =
             fs::read_to_string(destination.join("guest/Cargo.toml")).expect("read guest Cargo");
         let guest_main =
@@ -396,6 +404,8 @@ mod tests {
         let host_toolchain = fs::read_to_string(destination.join("host/rust-toolchain.toml"))
             .expect("read host rust-toolchain");
 
+        assert!(root_readme.contains("ZKSYNC_USE_CUDA_STUBS=true"));
+        assert!(root_gitignore.contains("target/"));
         assert!(guest_cargo.contains("name = \"hello-airbender-guest\""));
         assert!(guest_cargo.contains("airbender-sdk"));
         assert!(guest_main.contains("#![no_std]"));
@@ -407,6 +417,8 @@ mod tests {
             .contains("build-std = [\"alloc\", \"core\", \"panic_abort\", \"compiler_builtins\", \"std\", \"proc_macro\"]"));
         assert!(host_cargo.contains("name = \"hello-airbender-host\""));
         assert!(host_cargo.contains("airbender-host"));
+        assert!(host_cargo.contains("[profile.dev.package.keccak_special5]"));
+        assert!(host_cargo.contains("[profile.release.package.setups]"));
         assert!(host_main.contains("Program::load"));
         assert!(host_toolchain.contains(&format!("channel = \"{}\"", DEFAULT_GUEST_TOOLCHAIN)));
         assert!(!host_toolchain.contains("components"));

@@ -2,6 +2,7 @@
 
 This template contains:
 
+- `.gitignore`: ignores local build artifacts
 - `guest/`: Airbender guest program
 - `host/`: host-side runner/prover application
 - `guest/.cargo/config.toml`: guest target and build flags for local tooling
@@ -20,6 +21,14 @@ Run host execution:
 ```sh
 cd ../host
 cargo run
+```
+
+If your machine does not have CUDA configured, use stubs while building/running host commands:
+
+```sh
+ZKSYNC_USE_CUDA_STUBS=true cargo build
+ZKSYNC_USE_CUDA_STUBS=true cargo run
+ZKSYNC_USE_CUDA_STUBS=true cargo run -- --prove
 ```
 
 Run host execution + proof:

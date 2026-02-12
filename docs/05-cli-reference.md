@@ -75,6 +75,7 @@ Generated layout:
 
 ```text
 <project>/
+  .gitignore
   README.md
   guest/
     .cargo/config.toml

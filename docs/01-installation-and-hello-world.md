@@ -55,6 +55,7 @@ By default, generated projects depend on `airbender-sdk` from this repository (`
 
 The template includes:
 
+- `.gitignore` at project root (ignores `target/`)
 - `guest/`: guest program (default: `no_std`; or `std` with `--enable-std`)
 - `host/`: host app that runs and optionally proves guest execution
 - `guest/.cargo/config.toml` with guest target/build flags used by both `cargo airbender build` and regular `cargo` tooling
@@ -111,6 +112,8 @@ cd ../host
 cargo run
 cargo run -- --prove
 ```
+
+If CUDA is not configured on your machine, prefix host commands with `ZKSYNC_USE_CUDA_STUBS=true`.
 
 ## Prefer Full End-to-End Examples
 
