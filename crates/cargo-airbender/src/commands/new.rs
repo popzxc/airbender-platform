@@ -1,4 +1,5 @@
-use crate::cli::NewArgs;
+use crate::cli::{NewAllocatorArg, NewArgs};
+use airbender_build::DEFAULT_GUEST_TOOLCHAIN;
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -20,12 +21,20 @@ const TEMPLATE_FILES: &[(&str, &str)] = &[
         include_str!("../../templates/guest/src/main.rs.template"),
     ),
     (
+        "guest/rust-toolchain.toml",
+        include_str!("../../templates/guest/rust-toolchain.toml.template"),
+    ),
+    (
         "host/Cargo.toml",
         include_str!("../../templates/host/Cargo.toml.template"),
     ),
     (
         "host/src/main.rs",
         include_str!("../../templates/host/src/main.rs.template"),
+    ),
+    (
+        "host/rust-toolchain.toml",
+        include_str!("../../templates/host/rust-toolchain.toml.template"),
     ),
 ];
 
@@ -78,18 +87,55 @@ pub fn run(args: NewArgs) -> Result<()> {
     } else {
         "#![no_std]\n#![no_main]"
     };
-    let sdk_features = if args.enable_std {
-        ", features = [\"std\"]"
+    let sdk_default_features = match args.allocator {
+        NewAllocatorArg::Talc => "",
+        NewAllocatorArg::Bump | NewAllocatorArg::Custom => ", default-features = false",
+    };
+
+    let mut sdk_feature_flags = Vec::new();
+    if args.enable_std {
+        sdk_feature_flags.push("std");
+    }
+    match args.allocator {
+        NewAllocatorArg::Talc => {}
+        NewAllocatorArg::Bump => sdk_feature_flags.push("allocator-bump"),
+        NewAllocatorArg::Custom => sdk_feature_flags.push("allocator-custom"),
+    }
+    let sdk_features = if sdk_feature_flags.is_empty() {
+        String::new()
     } else {
-        ""
+        let rendered = sdk_feature_flags
+            .into_iter()
+            .map(|flag| format!("\"{flag}\""))
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!(", features = [{rendered}]")
+    };
+
+    let (main_attr_args, custom_allocator_module) = match args.allocator {
+        NewAllocatorArg::Custom => (
+            "(allocator_init = crate::custom_allocator::init)",
+            "mod custom_allocator {\n    use core::alloc::{GlobalAlloc, Layout};\n    use core::cell::UnsafeCell;\n    use core::ptr::null_mut;\n\n    struct CustomBumpAllocator {\n        state: UnsafeCell<State>,\n    }\n\n    struct State {\n        start: usize,\n        end: usize,\n        current: usize,\n        initialized: bool,\n    }\n\n    unsafe impl Sync for CustomBumpAllocator {}\n\n    impl CustomBumpAllocator {\n        const fn uninit() -> Self {\n            Self {\n                state: UnsafeCell::new(State {\n                    start: 0,\n                    end: 0,\n                    current: 0,\n                    initialized: false,\n                }),\n            }\n        }\n\n        unsafe fn init(&self, start: *mut usize, end: *mut usize) {\n            let state = &mut *self.state.get();\n            state.start = start as usize;\n            state.end = end as usize;\n            state.current = state.start;\n            state.initialized = true;\n        }\n\n        unsafe fn alloc_inner(&self, layout: Layout) -> *mut u8 {\n            let state = &mut *self.state.get();\n            if !state.initialized {\n                return null_mut();\n            }\n\n            let aligned = (state.current + layout.align() - 1) & !(layout.align() - 1);\n            let next = aligned.saturating_add(layout.size());\n            if next > state.end {\n                return null_mut();\n            }\n\n            state.current = next;\n            aligned as *mut u8\n        }\n    }\n\n    unsafe impl GlobalAlloc for CustomBumpAllocator {\n        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {\n            self.alloc_inner(layout)\n        }\n\n        unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {}\n    }\n\n    #[global_allocator]\n    static GLOBAL_ALLOCATOR: CustomBumpAllocator = CustomBumpAllocator::uninit();\n\n    pub fn init(start: *mut usize, end: *mut usize) {\n        unsafe { GLOBAL_ALLOCATOR.init(start, end) };\n    }\n}\n",
+        ),
+        NewAllocatorArg::Talc | NewAllocatorArg::Bump => ("", ""),
     };
 
     let replacements = [
         ("__AIRBENDER_PROJECT_NAME__", project_name.as_str()),
         ("__AIRBENDER_SDK_DEP__", sdk_dependency.as_str()),
+        ("__AIRBENDER_SDK_DEFAULT_FEATURES__", sdk_default_features),
         ("__AIRBENDER_HOST_DEP__", host_dependency.as_str()),
         ("__AIRBENDER_GUEST_ATTRIBUTES__", guest_attributes),
-        ("__AIRBENDER_SDK_FEATURES__", sdk_features),
+        ("__AIRBENDER_SDK_FEATURES__", sdk_features.as_str()),
+        ("__AIRBENDER_MAIN_ATTR_ARGS__", main_attr_args),
+        (
+            "__AIRBENDER_CUSTOM_ALLOCATOR_MODULE__",
+            custom_allocator_module,
+        ),
+        (
+            "__AIRBENDER_RUST_TOOLCHAIN_CHANNEL__",
+            DEFAULT_GUEST_TOOLCHAIN,
+        ),
     ];
 
     write_template(&args.path, &replacements)?;
@@ -325,6 +371,7 @@ mod tests {
             path: destination.clone(),
             name: Some("hello-airbender".to_string()),
             enable_std: false,
+            allocator: NewAllocatorArg::Talc,
             sdk_path: None,
             sdk_version: Some("0.1.0".to_string()),
         })
@@ -334,17 +381,26 @@ mod tests {
             fs::read_to_string(destination.join("guest/Cargo.toml")).expect("read guest Cargo");
         let guest_main =
             fs::read_to_string(destination.join("guest/src/main.rs")).expect("read guest main");
+        let guest_toolchain = fs::read_to_string(destination.join("guest/rust-toolchain.toml"))
+            .expect("read guest rust-toolchain");
         let host_cargo =
             fs::read_to_string(destination.join("host/Cargo.toml")).expect("read host Cargo");
         let host_main =
             fs::read_to_string(destination.join("host/src/main.rs")).expect("read host main");
+        let host_toolchain = fs::read_to_string(destination.join("host/rust-toolchain.toml"))
+            .expect("read host rust-toolchain");
 
         assert!(guest_cargo.contains("name = \"hello-airbender-guest\""));
         assert!(guest_cargo.contains("airbender-sdk"));
         assert!(guest_main.contains("#![no_std]"));
+        assert!(guest_toolchain.contains(&format!("channel = \"{}\"", DEFAULT_GUEST_TOOLCHAIN)));
+        assert!(guest_toolchain
+            .contains("components = [\"clippy\", \"rust-src\", \"llvm-tools-preview\"]"));
         assert!(host_cargo.contains("name = \"hello-airbender-host\""));
         assert!(host_cargo.contains("airbender-host"));
         assert!(host_main.contains("Program::load"));
+        assert!(host_toolchain.contains(&format!("channel = \"{}\"", DEFAULT_GUEST_TOOLCHAIN)));
+        assert!(!host_toolchain.contains("components"));
 
         fs::remove_dir_all(&root).expect("remove test directories");
     }
@@ -358,6 +414,7 @@ mod tests {
             path: destination.clone(),
             name: Some("hello-airbender".to_string()),
             enable_std: true,
+            allocator: NewAllocatorArg::Talc,
             sdk_path: None,
             sdk_version: Some("0.1.0".to_string()),
         })
@@ -370,6 +427,59 @@ mod tests {
 
         assert!(guest_cargo.contains("features = [\"std\"]"));
         assert!(!guest_main.contains("#![no_std]"));
+
+        fs::remove_dir_all(&root).expect("remove test directories");
+    }
+
+    #[test]
+    fn new_bump_allocator_disables_sdk_default_features() {
+        let root = test_workspace_dir("scaffold-bump-allocator");
+        let destination = root.join("hello-airbender");
+
+        run(NewArgs {
+            path: destination.clone(),
+            name: Some("hello-airbender".to_string()),
+            enable_std: false,
+            allocator: NewAllocatorArg::Bump,
+            sdk_path: None,
+            sdk_version: Some("0.1.0".to_string()),
+        })
+        .expect("create bump allocator scaffold");
+
+        let guest_cargo =
+            fs::read_to_string(destination.join("guest/Cargo.toml")).expect("read guest Cargo");
+
+        assert!(guest_cargo.contains("default-features = false"));
+        assert!(guest_cargo.contains("features = [\"allocator-bump\"]"));
+
+        fs::remove_dir_all(&root).expect("remove test directories");
+    }
+
+    #[test]
+    fn new_custom_allocator_adds_allocator_hook() {
+        let root = test_workspace_dir("scaffold-custom-allocator");
+        let destination = root.join("hello-airbender");
+
+        run(NewArgs {
+            path: destination.clone(),
+            name: Some("hello-airbender".to_string()),
+            enable_std: false,
+            allocator: NewAllocatorArg::Custom,
+            sdk_path: None,
+            sdk_version: Some("0.1.0".to_string()),
+        })
+        .expect("create custom allocator scaffold");
+
+        let guest_cargo =
+            fs::read_to_string(destination.join("guest/Cargo.toml")).expect("read guest Cargo");
+        let guest_main =
+            fs::read_to_string(destination.join("guest/src/main.rs")).expect("read guest main");
+
+        assert!(guest_cargo.contains("default-features = false"));
+        assert!(guest_cargo.contains("features = [\"allocator-custom\"]"));
+        assert!(guest_main
+            .contains("#[airbender::main(allocator_init = crate::custom_allocator::init)]"));
+        assert!(guest_main.contains("mod custom_allocator"));
 
         fs::remove_dir_all(&root).expect("remove test directories");
     }

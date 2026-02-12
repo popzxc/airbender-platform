@@ -1,0 +1,3 @@
+[toolchain]
+channel = "__AIRBENDER_RUST_TOOLCHAIN_CHANNEL__"
+components = ["clippy", "rust-src", "llvm-tools-preview"]

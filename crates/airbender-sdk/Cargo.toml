@@ -14,9 +14,16 @@ name = "airbender"
 
 [dependencies]
 airbender-codec = { path = "../airbender-codec" }
-airbender-guest = { path = "../airbender-guest" }
+airbender-guest = { path = "../airbender-guest", default-features = false }
 airbender-macros = { path = "../airbender-macros" }
-airbender-rt = { path = "../airbender-rt" }
+airbender-rt = { path = "../airbender-rt", default-features = false }
 
 [features]
+default = ["allocator-talc"]
 std = ["airbender-guest/std", "airbender-rt/std"]
+allocator-bump = ["airbender-guest/allocator-bump", "airbender-rt/allocator-bump"]
+allocator-talc = ["airbender-guest/allocator-talc", "airbender-rt/allocator-talc"]
+allocator-custom = [
+    "airbender-guest/allocator-custom",
+    "airbender-rt/allocator-custom",
+]

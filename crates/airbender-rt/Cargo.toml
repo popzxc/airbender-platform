@@ -12,6 +12,11 @@ categories.workspace = true
 [dependencies]
 riscv_common = { workspace = true, features = ["boot_sequence", "custom_allocator", "custom_panic"] }
 getrandom = { workspace = true, default-features = false, features = ["custom"] }
+talc = { workspace = true, default-features = false, features = ["allocator", "nightly_api"], optional = true }
 
 [features]
+default = ["allocator-talc"]
 std = []
+allocator-bump = []
+allocator-talc = ["dep:talc"]
+allocator-custom = []

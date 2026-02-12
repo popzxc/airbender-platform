@@ -1,0 +1,2 @@
+[toolchain]
+channel = "__AIRBENDER_RUST_TOOLCHAIN_CHANNEL__"

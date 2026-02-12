@@ -72,6 +72,7 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 [[package]]
 name = "common_constants"
 version = "0.1.0"
+source = "git+https://github.com/matter-labs/zksync-airbender?branch=dev#5ecb67472a3110878417527398d7e3a43875e57c"
 
 [[package]]
 name = "getrandom"
@@ -111,9 +112,17 @@ dependencies = [
 [[package]]
 name = "riscv_common"
 version = "0.1.0"
+source = "git+https://github.com/matter-labs/zksync-airbender?branch=dev#5ecb67472a3110878417527398d7e3a43875e57c"
 dependencies = [
  "common_constants",
+ "seq-macro",
 ]
+
+[[package]]
+name = "seq-macro"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1bc711410fbe7399f390ca1c3b60ad0f53f80e95c5eb935e52268a0e2cd49acc"
 
 [[package]]
 name = "serde"

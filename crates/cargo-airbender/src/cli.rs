@@ -80,10 +80,19 @@ pub struct NewArgs {
     pub name: Option<String>,
     #[arg(long)]
     pub enable_std: bool,
+    #[arg(long, value_enum, default_value_t = NewAllocatorArg::Talc)]
+    pub allocator: NewAllocatorArg,
     #[arg(long, conflicts_with = "sdk_version")]
     pub sdk_path: Option<PathBuf>,
     #[arg(long, conflicts_with = "sdk_path")]
     pub sdk_version: Option<String>,
+}
+
+#[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NewAllocatorArg {
+    Talc,
+    Bump,
+    Custom,
 }
 
 #[derive(Args, Debug)]
@@ -242,6 +251,25 @@ mod tests {
             Commands::New(args) => {
                 assert_eq!(args.path, PathBuf::from("./hello-airbender"));
                 assert!(args.enable_std);
+                assert_eq!(args.allocator, NewAllocatorArg::Talc);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_new_allocator_custom() {
+        let cli = Cli::parse_from([
+            "cargo-airbender",
+            "new",
+            "./hello-airbender",
+            "--allocator",
+            "custom",
+        ]);
+        match cli.command {
+            Commands::New(args) => {
+                assert_eq!(args.path, PathBuf::from("./hello-airbender"));
+                assert_eq!(args.allocator, NewAllocatorArg::Custom);
             }
             other => panic!("unexpected command: {other:?}"),
         }

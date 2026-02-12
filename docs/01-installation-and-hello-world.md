@@ -42,6 +42,12 @@ To generate a guest with `std` support enabled, use:
 cargo airbender new ./hello-airbender --enable-std
 ```
 
+To choose allocator mode in generated guest code, use:
+
+```sh
+cargo airbender new ./hello-airbender --allocator talc
+```
+
 By default, generated projects depend on `airbender-sdk` from this repository (`main` branch). You can override this with:
 
 - `--sdk-path <path>` for a local checkout (workspace root, `crates/`, or crate path)
@@ -51,6 +57,7 @@ The template includes:
 
 - `guest/`: guest program (default: `no_std`; or `std` with `--enable-std`)
 - `host/`: host app that runs and optionally proves guest execution
+- `rust-toolchain.toml` in both crates to pin the compiler channel
 
 The generated guest reads a `u32` input and returns `value + 1`.
 

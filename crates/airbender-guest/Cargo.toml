@@ -11,8 +11,12 @@ categories.workspace = true
 
 [dependencies]
 airbender-codec = { path = "../airbender-codec" }
-airbender-rt = { path = "../airbender-rt" }
+airbender-rt = { path = "../airbender-rt", default-features = false }
 serde = { workspace = true, default-features = false, features = ["alloc", "derive"] }
 
 [features]
+default = ["allocator-talc"]
 std = ["airbender-rt/std", "serde/std"]
+allocator-bump = ["airbender-rt/allocator-bump"]
+allocator-talc = ["airbender-rt/allocator-talc"]
+allocator-custom = ["airbender-rt/allocator-custom"]

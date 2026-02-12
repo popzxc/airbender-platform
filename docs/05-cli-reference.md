@@ -59,8 +59,12 @@ Options:
 
 - `--name <name>`: override package name
 - `--enable-std`: generate guest with `airbender-sdk` `std` feature
+- `--allocator <talc|bump|custom>`: select guest allocator mode (default: `talc`)
 - `--sdk-path <path>`: use local SDK path (workspace root, `crates/`, or crate path)
 - `--sdk-version <version>`: use versioned SDK dependency
+
+If `custom` allocator is chosen, the guest code will have `#[airbender::main(allocator_init = ...)]` and an explicit allocator
+module you can replace.
 
 Default behavior (when neither `--sdk-path` nor `--sdk-version` is provided):
 
@@ -74,9 +78,11 @@ Generated layout:
   README.md
   guest/
     Cargo.toml
+    rust-toolchain.toml
     src/main.rs
   host/
     Cargo.toml
+    rust-toolchain.toml
     src/main.rs
 ```
 

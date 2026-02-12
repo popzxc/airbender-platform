@@ -1,19 +1,14 @@
-//! Minimal allocator for guest programs.
-
 use core::alloc::{GlobalAlloc, Layout};
 use core::cell::UnsafeCell;
 use core::ptr::null_mut;
 
 /// Simple bump allocator for guest programs.
-///
-/// Airbender programs run single-threaded, so a non-locking allocator is
-/// sufficient and avoids pulling in additional dependencies.
 pub struct BumpAllocator {
-    state: UnsafeCell<State>,
+    state: UnsafeCell<BumpState>,
 }
 
 #[derive(Clone, Copy)]
-struct State {
+struct BumpState {
     start: usize,
     end: usize,
     current: usize,
@@ -25,7 +20,7 @@ unsafe impl Sync for BumpAllocator {}
 impl BumpAllocator {
     pub const fn uninit() -> Self {
         Self {
-            state: UnsafeCell::new(State {
+            state: UnsafeCell::new(BumpState {
                 start: 0,
                 end: 0,
                 current: 0,
@@ -34,12 +29,9 @@ impl BumpAllocator {
         }
     }
 
-    /// Initialize allocator bounds once the boot sequence provides heap limits.
-    ///
     /// # Safety
     ///
-    /// Caller must ensure `start` and `end` are valid, non-overlapping, and
-    /// the heap region is writable.
+    /// Caller must ensure `start` and `end` define a writable heap range.
     pub unsafe fn init(&self, start: *mut usize, end: *mut usize) {
         let state = &mut *self.state.get();
         state.start = start as usize;
@@ -53,6 +45,7 @@ impl BumpAllocator {
         if !state.initialized {
             return null_mut();
         }
+
         let align = layout.align();
         let size = layout.size();
         let aligned = (state.current + align - 1) & !(align - 1);
@@ -60,6 +53,7 @@ impl BumpAllocator {
         if next > state.end {
             return null_mut();
         }
+
         state.current = next;
         aligned as *mut u8
     }
@@ -79,6 +73,7 @@ unsafe impl GlobalAlloc for BumpAllocator {
             return self
                 .alloc_inner(Layout::from_size_align(new_size, layout.align()).unwrap_or(layout));
         }
+
         let new_layout = Layout::from_size_align(new_size, layout.align()).unwrap_or(layout);
         let new_ptr = self.alloc_inner(new_layout);
         if !new_ptr.is_null() {
@@ -92,11 +87,6 @@ unsafe impl GlobalAlloc for BumpAllocator {
 #[global_allocator]
 static GLOBAL_ALLOCATOR: BumpAllocator = BumpAllocator::uninit();
 
-/// Initialize the global allocator with the provided heap bounds.
-///
-/// # Safety
-///
-/// Caller must provide a valid heap region.
-pub unsafe fn init(start: *mut usize, end: *mut usize) {
-    GLOBAL_ALLOCATOR.init(start, end);
+pub fn init(start: *mut usize, end: *mut usize) {
+    unsafe { GLOBAL_ALLOCATOR.init(start, end) };
 }

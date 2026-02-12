@@ -15,6 +15,12 @@ Enable `std` guest support only when needed:
 airbender = { package = "airbender-sdk", path = "../../crates/airbender-sdk", features = ["std"] }
 ```
 
+Allocator selection is feature-based (`allocator-talc` default, or `allocator-bump` / `allocator-custom`):
+
+```toml
+airbender = { package = "airbender-sdk", path = "../../crates/airbender-sdk", default-features = false, features = ["allocator-bump"] }
+```
+
 ## Entry Point: `#[airbender::main]`
 
 Write a regular Rust function and annotate it:
@@ -33,6 +39,15 @@ Rules:
 - function should return a value that can be committed (or `()`)
 
 The macro provides the runtime entry point and commits the function result as guest output.
+
+For custom allocator wiring, you can provide an init hook:
+
+```rust
+#[airbender::main(allocator_init = crate::custom_allocator::init)]
+fn main() -> u32 {
+    42
+}
+```
 
 ## Reading Input Data
 

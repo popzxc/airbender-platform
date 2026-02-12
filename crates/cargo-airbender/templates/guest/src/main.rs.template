@@ -2,7 +2,9 @@ __AIRBENDER_GUEST_ATTRIBUTES__
 
 use airbender::guest::read;
 
-#[airbender::main]
+__AIRBENDER_CUSTOM_ALLOCATOR_MODULE__
+
+#[airbender::main__AIRBENDER_MAIN_ATTR_ARGS__]
 fn main() -> u32 {
     let value: u32 = read().expect("failed to read input");
     value + 1

@@ -23,7 +23,7 @@ pub mod uart;
 #[cfg(all(feature = "std", target_arch = "riscv32"))]
 mod glue;
 
-pub use boot::start;
+pub use boot::{start, start_with_allocator_init};
 
 #[cfg(all(not(feature = "std"), target_arch = "riscv32"))]
 #[panic_handler]
