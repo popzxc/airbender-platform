@@ -1,5 +1,5 @@
 use airbender_host::{
-    Inputs, Program, Prover, Result, Runner, VerificationRequest, Verifier__AIRBENDER_HOST_USE_EXTRA_IMPORTS__
+    Inputs, Program, Prover, ProverLevel, Result, Runner, VerificationRequest, Verifier,
 };
 use std::path::PathBuf;
 
@@ -23,7 +23,10 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-__AIRBENDER_HOST_PROVER_INIT__
+    let prover = program
+        .gpu_prover()
+        .with_level(ProverLevel::RecursionUnified)
+        .build()?;
     let prove_result = prover.prove(inputs.words())?;
     let proof_output = prove_result.receipt.output[0];
     println!(
@@ -36,12 +39,12 @@ __AIRBENDER_HOST_PROVER_INIT__
     );
 
     let expected_output = 42u32;
-__AIRBENDER_HOST_VERIFIER_INIT__
+    let verifier = program.real_verifier(ProverLevel::RecursionUnified).build()?;
     let vk = verifier.generate_vk()?;
     verifier.verify(
         &prove_result.proof,
         &vk,
-        __AIRBENDER_HOST_VERIFICATION_REQUEST__,
+        VerificationRequest::real(&expected_output),
     )?;
     println!("Proof verified.");
 

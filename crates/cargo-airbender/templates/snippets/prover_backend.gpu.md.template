@@ -1,0 +1,3 @@
+Default prover backend: `gpu`.
+
+`gpu` mode runs real proving and requires a CUDA-capable NVIDIA GPU at runtime. You can compile with `ZKSYNC_USE_CUDA_STUBS=true`, but invoking GPU proving without CUDA setup will panic.

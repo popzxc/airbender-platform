@@ -1,0 +1,3 @@
+Default prover backend: `dev`.
+
+`dev` mode does not run cryptographic proving; it emits a mock proof envelope and is ideal for development.
