@@ -10,6 +10,10 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-serde = { workspace = true, features = ["derive", "std"] }
-toml = { workspace = true }
-thiserror = { workspace = true }
+serde = { workspace = true, default-features = false, features = ["derive"], optional = true }
+toml = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+
+[features]
+default = ["host"]
+host = ["dep:serde", "dep:toml", "dep:thiserror"]

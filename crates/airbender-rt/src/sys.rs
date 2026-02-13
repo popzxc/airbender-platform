@@ -31,16 +31,6 @@ pub fn exit_success(_words: &[u32; 8]) -> ! {
 }
 
 #[cfg(target_arch = "riscv32")]
-pub fn exit_success_extended(words: &[u32; 16]) -> ! {
-    riscv_common::zksync_os_finish_success_extended(words)
-}
-
-#[cfg(not(target_arch = "riscv32"))]
-pub fn exit_success_extended(_words: &[u32; 16]) -> ! {
-    panic!("exit_success_extended is only available on riscv32")
-}
-
-#[cfg(target_arch = "riscv32")]
 pub fn exit_error() -> ! {
     riscv_common::zksync_os_finish_error()
 }

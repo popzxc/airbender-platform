@@ -36,8 +36,9 @@ fn main() -> Result<()> {
         "execution and proof output mismatch"
     );
 
+    let expected_output = 42u32;
     let vk = program.compute_vk()?;
-    program.verify(&prove_result.proof, &vk)?;
+    program.verify(&prove_result.proof, &vk, &expected_output)?;
     println!("Proof verified.");
 
     Ok(())

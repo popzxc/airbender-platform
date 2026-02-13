@@ -41,7 +41,7 @@ fn main() -> Result<()> {
     );
 
     let vk = program.compute_vk()?;
-    program.verify(&prove_result.proof, &vk)?;
+    program.verify(&prove_result.proof, &vk, &true)?;
     println!("Proof verified.");
 
     assert_eq!(

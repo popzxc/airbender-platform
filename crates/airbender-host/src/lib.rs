@@ -8,6 +8,7 @@ mod receipt;
 mod runner;
 mod vk;
 
+pub use airbender_core::guest::Commit;
 pub use error::{HostError, Result};
 pub use inputs::Inputs;
 pub use program::Program;

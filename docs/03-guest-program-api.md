@@ -79,26 +79,20 @@ You have two common patterns:
 2. Call commit functions directly:
 
 ```rust
-use airbender::guest::{commit, commit_extended, exit_error};
+use airbender::guest::{commit, exit_error};
 
 // Commit 8-word output and exit success.
 commit(123u32);
-
-// Commit 16-word extended output and exit success.
-commit_extended([0u32; 16]);
 
 // Exit with an error.
 exit_error();
 ```
 
-Built-in commit support includes `()`, `u32`, `u64`, `i64`, `bool`, `[u32; 8]`, and `[u32; 16]` (extended).
+Built-in commit support includes `()`, `u32`, `u64`, `i64`, `bool`, and `[u32; 8]`.
 
 ## Custom Output Layouts
 
-To map your own type into output registers, implement commit traits from `airbender::guest`:
-
-- `Commit` for 8-word output (`[u32; 8]`)
-- `CommitExtended` for 16-word output (`[u32; 16]`)
+To map your own type into output registers, implement `Commit` from `airbender::guest` for 8-word output (`[u32; 8]`).
 
 This keeps guest-host output contracts explicit and stable.
 
@@ -107,7 +101,7 @@ This keeps guest-host output contracts explicit and stable.
 - Host `Inputs::push(...)` order == guest `read::<T>()` consumption order
 - Guest output maps to host `Receipt` fields:
   - `output` (`x10..x17`)
-  - `output_extended` (`x10..x25`)
+  - `output_extended` (`x10..x25`, includes recursion-specific words)
 
 ## Complete Guest Examples
 

@@ -1,6 +1,6 @@
 //! Error types surfaced by guest artifact building.
 
-use airbender_core::manifest::ManifestError;
+use airbender_core::host::manifest::ManifestError;
 use std::process::ExitStatus;
 
 /// Unified error type for build and packaging operations.

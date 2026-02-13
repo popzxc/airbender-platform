@@ -2,7 +2,8 @@ use crate::error::{HostError, Result};
 use crate::prover::{CpuProverBuilder, GpuProverBuilder};
 use crate::runner::{SimulatorRunnerBuilder, TranspilerRunnerBuilder};
 use crate::vk::{compute_unified_vk, verify_proof, UnifiedVk};
-use airbender_core::manifest::Manifest;
+use airbender_core::guest::Commit;
+use airbender_core::host::manifest::Manifest;
 use sha3::Digest;
 use std::path::{Path, PathBuf};
 
@@ -96,14 +97,15 @@ impl Program {
         compute_unified_vk(self.app_bin())
     }
 
-    /// Verify a proof against a unified verification key.
+    /// Verify a proof against a unified verification key and expected output.
     pub fn verify(
         &self,
         proof: &execution_utils::unrolled::UnrolledProgramProof,
         vk: &UnifiedVk,
+        expected_output: &dyn Commit,
     ) -> Result<()> {
         let app_bin_hash = hash_app_bin(self.app_bin())?;
-        verify_proof(proof, vk, Some(app_bin_hash))
+        verify_proof(proof, vk, Some(app_bin_hash), Some(expected_output))
     }
 }
 

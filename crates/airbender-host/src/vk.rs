@@ -1,5 +1,6 @@
 use crate::error::{HostError, Result};
 use crate::prover::ProverLevel;
+use airbender_core::guest::Commit;
 use execution_utils::setups;
 use execution_utils::unified_circuit::verify_proof_in_unified_layer;
 use execution_utils::unrolled::{
@@ -121,11 +122,14 @@ pub fn verify_proof(
     proof: &UnrolledProgramProof,
     vk: &UnifiedVk,
     expected_app_bin_hash: Option<[u8; 32]>,
+    expected_output: Option<&dyn Commit>,
 ) -> Result<()> {
     verify_app_bin_hash(expected_app_bin_hash, vk.app_bin_hash)?;
 
-    verify_proof_in_unified_layer(proof, &vk.unified_setup, &vk.unified_layouts, false)
-        .map_err(|_| HostError::Verification("proof verification failed".to_string()))?;
+    let verifier_output =
+        verify_proof_in_unified_layer(proof, &vk.unified_setup, &vk.unified_layouts, false)
+            .map_err(|_| HostError::Verification("proof verification failed".to_string()))?;
+    verify_expected_output(expected_output, verifier_output)?;
     Ok(())
 }
 
@@ -134,6 +138,7 @@ pub fn verify_unrolled_proof(
     vk: &UnrolledVk,
     level: ProverLevel,
     expected_app_bin_hash: Option<[u8; 32]>,
+    expected_output: Option<&dyn Commit>,
 ) -> Result<()> {
     verify_app_bin_hash(expected_app_bin_hash, vk.app_bin_hash)?;
 
@@ -148,8 +153,31 @@ pub fn verify_unrolled_proof(
         }
     };
 
-    verify_unrolled_layer_proof(proof, &vk.setup, &vk.compiled_layouts, is_base_layer)
-        .map_err(|_| HostError::Verification("proof verification failed".to_string()))?;
+    let verifier_output =
+        verify_unrolled_layer_proof(proof, &vk.setup, &vk.compiled_layouts, is_base_layer)
+            .map_err(|_| HostError::Verification("proof verification failed".to_string()))?;
+    verify_expected_output(expected_output, verifier_output)?;
+    Ok(())
+}
+
+fn verify_expected_output(
+    expected_output: Option<&dyn Commit>,
+    verifier_output: [u32; 16],
+) -> Result<()> {
+    let Some(expected_output) = expected_output else {
+        return Ok(());
+    };
+
+    let expected_words = expected_output.commit_words();
+    let mut actual_words = [0u32; 8];
+    actual_words.copy_from_slice(&verifier_output[..8]);
+
+    if expected_words != actual_words {
+        return Err(HostError::Verification(format!(
+            "public output mismatch: expected {expected_words:?}, got {actual_words:?}"
+        )));
+    }
+
     Ok(())
 }
 
@@ -208,5 +236,27 @@ fn base_path(app_bin_path: &Path) -> Result<String> {
         Ok(stripped.to_string())
     } else {
         Ok(path_str.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::verify_expected_output;
+
+    #[test]
+    fn verify_expected_output_accepts_matching_words() {
+        let mut verifier_output = [0u32; 16];
+        verifier_output[0] = 42;
+
+        verify_expected_output(Some(&42u32), verifier_output).expect("matching output must verify");
+    }
+
+    #[test]
+    fn verify_expected_output_rejects_mismatch() {
+        let verifier_output = [0u32; 16];
+
+        let err = verify_expected_output(Some(&1u32), verifier_output)
+            .expect_err("mismatching output must fail verification");
+        assert!(err.to_string().contains("public output mismatch"));
     }
 }

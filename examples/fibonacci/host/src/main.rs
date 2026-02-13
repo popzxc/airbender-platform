@@ -40,7 +40,7 @@ fn main() -> Result<()> {
     );
 
     let vk = program.compute_vk()?;
-    program.verify(&prove_result.proof, &vk)?;
+    program.verify(&prove_result.proof, &vk, &expected)?;
     println!("Proof verified.");
 
     Ok(())

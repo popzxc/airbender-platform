@@ -56,7 +56,7 @@ pub fn verify(args: VerifyProofArgs) -> Result<()> {
                     err,
                 )
             })?;
-            airbender_host::verify_proof(&proof, &vk, None)
+            airbender_host::verify_proof(&proof, &vk, None, None)
                 .map_err(|err| CliError::with_source("proof verification failed", err))?;
         }
         ProverLevelArg::Base | ProverLevelArg::RecursionUnrolled => {
@@ -66,8 +66,14 @@ pub fn verify(args: VerifyProofArgs) -> Result<()> {
                     err,
                 )
             })?;
-            airbender_host::verify_unrolled_proof(&proof, &vk, as_host_level(args.level), None)
-                .map_err(|err| CliError::with_source("proof verification failed", err))?;
+            airbender_host::verify_unrolled_proof(
+                &proof,
+                &vk,
+                as_host_level(args.level),
+                None,
+                None,
+            )
+            .map_err(|err| CliError::with_source("proof verification failed", err))?;
         }
     }
 

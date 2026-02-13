@@ -150,6 +150,7 @@ name = "airbender-guest"
 version = "0.1.0"
 dependencies = [
  "airbender-codec",
+ "airbender-core",
  "airbender-rt",
  "serde",
 ]

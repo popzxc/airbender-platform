@@ -34,7 +34,8 @@ fn run() -> Result<()> {
         .build()?;
     let prove_result = prover.prove(inputs.words())?;
     let vk = program.compute_vk()?;
-    program.verify(&prove_result.proof, &vk)?;
+    let expected_output = 55u32;
+    program.verify(&prove_result.proof, &vk, &expected_output)?;
     Ok(())
 }
 ```
@@ -61,7 +62,7 @@ High-level:
 - `Runner::run(&input_words)`
 - `Prover::prove(&input_words)`
 - `Program::compute_vk()`
-- `Program::verify(&proof, &vk)`
+- `Program::verify(&proof, &vk, &expected_output)`
 
 Lower-level:
 
@@ -72,14 +73,16 @@ Lower-level:
 - `compute_unified_vk(...)`, `compute_unrolled_vk(...)`
 - `verify_proof(...)`, `verify_unrolled_proof(...)`
 
+Verification APIs can enforce expected public outputs (`x10..x17`) in addition to proof validity.
+
 ## `Receipt` Output
 
 `Receipt` captures post-execution registers and output slices:
 
 - `receipt.output` maps to `x10..x17` (8 words)
-- `receipt.output_extended` maps to `x10..x25` (16 words)
+- `receipt.output_extended` maps to `x10..x25` (16 words, includes recursion-chain fields)
 
-These correspond to guest commit helpers and `#[airbender::main]` return values.
+`#[airbender::main]` return values and `guest::commit(...)` map to `receipt.output`.
 
 ## Prover Construction
 
