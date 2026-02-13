@@ -82,6 +82,13 @@ pub struct NewArgs {
     pub enable_std: bool,
     #[arg(long, value_enum, default_value_t = NewAllocatorArg::Talc)]
     pub allocator: NewAllocatorArg,
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = NewProverBackendArg::Dev,
+        long_help = "Select host template proving backend.\n- dev: mock proof envelope for development (no cryptographic proving).\n- gpu: real GPU proving; requires CUDA-capable NVIDIA GPU at runtime. You can compile with ZKSYNC_USE_CUDA_STUBS=true, but running proving without CUDA setup panics."
+    )]
+    pub prover_backend: NewProverBackendArg,
     #[arg(short = 'y', long)]
     pub yes: bool,
     #[arg(long, conflicts_with = "sdk_version")]
@@ -95,6 +102,14 @@ pub enum NewAllocatorArg {
     Talc,
     Bump,
     Custom,
+}
+
+#[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NewProverBackendArg {
+    /// Use transpiler execution and emit a mock proof envelope (best for development).
+    Dev,
+    /// Use real GPU proving (requires CUDA-capable NVIDIA GPU at runtime).
+    Gpu,
 }
 
 #[derive(Args, Debug)]
@@ -141,7 +156,7 @@ pub struct ProveArgs {
     pub input: PathBuf,
     #[arg(long)]
     pub output: PathBuf,
-    #[arg(long, value_enum, default_value_t = ProverBackendArg::Gpu)]
+    #[arg(long, value_enum, default_value_t = ProverBackendArg::Dev)]
     pub backend: ProverBackendArg,
     #[arg(short, long)]
     pub threads: Option<usize>,
@@ -167,12 +182,11 @@ pub struct VerifyProofArgs {
     pub proof: PathBuf,
     #[arg(long)]
     pub vk: PathBuf,
-    #[arg(long, value_enum, default_value_t = ProverLevelArg::RecursionUnified)]
-    pub level: ProverLevelArg,
 }
 
 #[derive(ValueEnum, Debug, Clone, Copy)]
 pub enum ProverBackendArg {
+    Dev,
     Cpu,
     Gpu,
 }
@@ -254,6 +268,7 @@ mod tests {
                 assert_eq!(args.path, Some(PathBuf::from("./hello-airbender")));
                 assert!(args.enable_std);
                 assert_eq!(args.allocator, NewAllocatorArg::Talc);
+                assert_eq!(args.prover_backend, NewProverBackendArg::Dev);
             }
             other => panic!("unexpected command: {other:?}"),
         }
@@ -272,6 +287,25 @@ mod tests {
             Commands::New(args) => {
                 assert_eq!(args.path, Some(PathBuf::from("./hello-airbender")));
                 assert_eq!(args.allocator, NewAllocatorArg::Custom);
+                assert_eq!(args.prover_backend, NewProverBackendArg::Dev);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_new_prover_backend_gpu() {
+        let cli = Cli::parse_from([
+            "cargo-airbender",
+            "new",
+            "./hello-airbender",
+            "--prover-backend",
+            "gpu",
+        ]);
+        match cli.command {
+            Commands::New(args) => {
+                assert_eq!(args.path, Some(PathBuf::from("./hello-airbender")));
+                assert_eq!(args.prover_backend, NewProverBackendArg::Gpu);
             }
             other => panic!("unexpected command: {other:?}"),
         }
@@ -285,6 +319,7 @@ mod tests {
                 assert_eq!(args.path, None);
                 assert!(!args.yes);
                 assert_eq!(args.allocator, NewAllocatorArg::Talc);
+                assert_eq!(args.prover_backend, NewProverBackendArg::Dev);
             }
             other => panic!("unexpected command: {other:?}"),
         }

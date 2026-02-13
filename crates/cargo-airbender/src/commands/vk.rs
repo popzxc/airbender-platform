@@ -5,7 +5,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::path::Path;
 
 pub fn generate(args: GenerateVkArgs) -> Result<()> {
-    match args.level {
+    let vk = match args.level {
         ProverLevelArg::RecursionUnified => {
             let vk = airbender_host::compute_unified_vk(&args.app_bin).map_err(|err| {
                 CliError::with_source(
@@ -16,22 +16,28 @@ pub fn generate(args: GenerateVkArgs) -> Result<()> {
                     err,
                 )
             })?;
-            write_bincode(&args.output, &vk)?;
+            airbender_host::VerificationKey::RealUnified(
+                airbender_host::RealUnifiedVerificationKey { vk },
+            )
         }
         ProverLevelArg::Base | ProverLevelArg::RecursionUnrolled => {
-            let vk = airbender_host::compute_unrolled_vk(&args.app_bin, as_host_level(args.level))
-                .map_err(|err| {
-                    CliError::with_source(
-                        format!(
-                            "failed to compute unrolled verification keys for `{}`",
-                            args.app_bin.display()
-                        ),
-                        err,
-                    )
-                })?;
-            write_bincode(&args.output, &vk)?;
+            let level = as_host_level(args.level);
+            let vk = airbender_host::compute_unrolled_vk(&args.app_bin, level).map_err(|err| {
+                CliError::with_source(
+                    format!(
+                        "failed to compute unrolled verification keys for `{}`",
+                        args.app_bin.display()
+                    ),
+                    err,
+                )
+            })?;
+            airbender_host::VerificationKey::RealUnrolled(
+                airbender_host::RealUnrolledVerificationKey { level, vk },
+            )
         }
-    }
+    };
+
+    write_bincode(&args.output, &vk)?;
 
     ui::success("verification keys generated");
     ui::field("level", level_name(args.level));
@@ -41,44 +47,41 @@ pub fn generate(args: GenerateVkArgs) -> Result<()> {
 }
 
 pub fn verify(args: VerifyProofArgs) -> Result<()> {
-    let proof: airbender_host::UnrolledProgramProof = read_bincode(&args.proof).map_err(|err| {
+    let proof: airbender_host::Proof = read_bincode(&args.proof).map_err(|err| {
         CliError::with_source(
             format!("failed to decode proof from `{}`", args.proof.display()),
             err,
         )
     })?;
 
-    match args.level {
-        ProverLevelArg::RecursionUnified => {
-            let vk: airbender_host::UnifiedVk = read_bincode(&args.vk).map_err(|err| {
-                CliError::with_source(
-                    format!("failed to decode unified VK file `{}`", args.vk.display()),
-                    err,
-                )
-            })?;
-            airbender_host::verify_proof(&proof, &vk, None, None)
-                .map_err(|err| CliError::with_source("proof verification failed", err))?;
-        }
-        ProverLevelArg::Base | ProverLevelArg::RecursionUnrolled => {
-            let vk: airbender_host::UnrolledVk = read_bincode(&args.vk).map_err(|err| {
-                CliError::with_source(
-                    format!("failed to decode unrolled VK file `{}`", args.vk.display()),
-                    err,
-                )
-            })?;
-            airbender_host::verify_unrolled_proof(
-                &proof,
-                &vk,
-                as_host_level(args.level),
-                None,
-                None,
+    let vk: airbender_host::VerificationKey = read_bincode(&args.vk).map_err(|err| {
+        CliError::with_source(
+            format!(
+                "failed to decode verification key file `{}`",
+                args.vk.display()
+            ),
+            err,
+        )
+    })?;
+
+    let level = match &proof {
+        airbender_host::Proof::Dev(_) => {
+            return Err(CliError::new(
+                "detected a dev proof; `cargo airbender verify-proof` supports only real proofs",
             )
-            .map_err(|err| CliError::with_source("proof verification failed", err))?;
+            .with_hint(
+                "verify dev proofs through `airbender-host` with `Program::dev_verifier()`",
+            ));
         }
-    }
+        airbender_host::Proof::Real(proof) => {
+            airbender_host::verify_real_proof_with_vk(proof, &vk)
+                .map_err(|err| CliError::with_source("proof verification failed", err))?;
+            proof.level()
+        }
+    };
 
     ui::success("proof verified");
-    ui::field("level", level_name(args.level));
+    ui::field("level", host_level_name(level));
 
     Ok(())
 }
@@ -96,6 +99,14 @@ fn level_name(level: ProverLevelArg) -> &'static str {
         ProverLevelArg::Base => "base",
         ProverLevelArg::RecursionUnrolled => "recursion-unrolled",
         ProverLevelArg::RecursionUnified => "recursion-unified",
+    }
+}
+
+fn host_level_name(level: airbender_host::ProverLevel) -> &'static str {
+    match level {
+        airbender_host::ProverLevel::Base => "base",
+        airbender_host::ProverLevel::RecursionUnrolled => "recursion-unrolled",
+        airbender_host::ProverLevel::RecursionUnified => "recursion-unified",
     }
 }
 

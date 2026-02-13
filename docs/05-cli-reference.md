@@ -60,6 +60,7 @@ This command always runs in interactive mode and asks:
 - project name
 - whether to enable `std`
 - allocator mode (`talc`, `bump`, `custom`)
+- prover backend (`dev`, `gpu`)
 
 If `[path]` is omitted, the project is initialized in the current directory.
 The destination directory must be empty.
@@ -71,9 +72,15 @@ Options:
 - `--name <name>`: default project name for interactive mode (or value used with `--yes`)
 - `--enable-std`: default `std` answer for interactive mode (or value used with `--yes`)
 - `--allocator <talc|bump|custom>`: default allocator answer for interactive mode (or value used with `--yes`)
+- `--prover-backend <dev|gpu>`: default prover backend answer for interactive mode (or value used with `--yes`)
 - `--yes`: skip prompts and accept values from flags/defaults
 - `--sdk-path <path>`: use local SDK path (workspace root, `crates/`, or crate path)
 - `--sdk-version <version>`: use versioned SDK dependency
+
+Prover backend choices:
+
+- `dev`: transpiler-backed development flow that emits a mock proof envelope instead of running cryptographic proving
+- `gpu`: real proving backend; requires a CUDA-capable NVIDIA GPU at runtime. You can compile with `ZKSYNC_USE_CUDA_STUBS=true`, but invoking proving without CUDA setup panics.
 
 If `custom` allocator is chosen, the guest code will have `#[airbender::main(allocator_init = ...)]` and an explicit allocator
 module you can replace.
@@ -150,11 +157,17 @@ cargo airbender prove ./dist/app/app.bin --input ./input.hex --output proof.bin
 
 Key options:
 
-- `--backend <cpu|gpu>` (default: `gpu`)
+- `--backend <dev|cpu|gpu>` (default: `dev`)
 - `--threads <n>`
 - `--cycles <n>`
 - `--ram-bound <bytes>`
 - `--level <base|recursion-unrolled|recursion-unified>` (default: `recursion-unified`)
+
+Notes:
+
+- `dev` backend runs transpiler execution and emits a dev proof envelope.
+- `gpu` backend requires enabling the `airbender-host/gpu-prover` feature.
+- `verify-proof` accepts only real proofs, so use `--backend cpu` or `--backend gpu` when preparing proofs for CLI verification.
 
 ## `cargo airbender generate-vk`
 
@@ -171,7 +184,7 @@ Options:
 
 ## `cargo airbender verify-proof`
 
-Verifies a proof against a verification key file.
+Verifies a real proof against a real verification key file.
 
 ```sh
 cargo airbender verify-proof ./proof.bin --vk ./vk.bin
@@ -180,7 +193,11 @@ cargo airbender verify-proof ./proof.bin --vk ./vk.bin
 Options:
 
 - `--vk <file>` (required)
-- `--level <base|recursion-unrolled|recursion-unified>`
+
+Notes:
+
+- dev proofs are rejected by this command with a dedicated error message.
+- this command currently verifies proof validity against VK only; to enforce expected public output and input checks, use `airbender-host` verifier APIs.
 
 ## Input File Format (`--input`)
 

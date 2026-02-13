@@ -16,7 +16,9 @@ airbender-host = { path = "../../crates/airbender-host" }
 Create runners/provers once and reuse them across multiple `runner.run(...)` / `prover.prove(...)` calls.
 
 ```rust
-use airbender_host::{Inputs, Program, Prover, ProverLevel, Result, Runner};
+use airbender_host::{
+    Inputs, Program, Prover, Result, Runner, VerificationRequest, Verifier,
+};
 
 fn run() -> Result<()> {
     let program = Program::load("../guest/dist/app")?;
@@ -28,14 +30,16 @@ fn run() -> Result<()> {
     let execution = simulator.run(inputs.words())?;
     println!("output x10={}", execution.receipt.output[0]);
 
-    let prover = program
-        .gpu_prover()
-        .with_level(ProverLevel::RecursionUnified)
-        .build()?;
+    let prover = program.dev_prover().build()?;
     let prove_result = prover.prove(inputs.words())?;
-    let vk = program.compute_vk()?;
-    let expected_output = 55u32;
-    program.verify(&prove_result.proof, &vk, &expected_output)?;
+
+    let verifier = program.dev_verifier().build()?;
+    let vk = verifier.generate_vk()?;
+    verifier.verify(
+        &prove_result.proof,
+        &vk,
+        VerificationRequest::dev(inputs.words(), &55u32),
+    )?;
     Ok(())
 }
 ```
@@ -57,19 +61,26 @@ High-level:
 
 - `Program::simulator_runner()`
 - `Program::transpiler_runner()`
+- `Program::dev_prover()`
 - `Program::gpu_prover()`
 - `Program::cpu_prover()`
+- `Program::dev_verifier()`
+- `Program::real_verifier(level)`
 - `Runner::run(&input_words)`
 - `Prover::prove(&input_words)`
-- `Program::compute_vk()`
-- `Program::verify(&proof, &vk, &expected_output)`
+- `Verifier::generate_vk()`
+- `Verifier::verify(&proof, &vk, request)`
+- `VerificationRequest::dev(...)` / `VerificationRequest::real(...)`
 
 Lower-level:
 
 - `SimulatorRunnerBuilder::new(app_bin).with_...().build()`
 - `TranspilerRunnerBuilder::new(app_bin).with_...().build()`
+- `DevProverBuilder::new(app_bin).with_...().build()`
 - `GpuProverBuilder::new(app_bin).with_...().build()`
 - `CpuProverBuilder::new(app_bin).with_...().build()`
+- `DevVerifierBuilder::new(app_bin).build()`
+- `RealVerifierBuilder::new(app_bin, level).build()`
 - `compute_unified_vk(...)`, `compute_unrolled_vk(...)`
 - `verify_proof(...)`, `verify_unrolled_proof(...)`
 
@@ -86,10 +97,12 @@ Verification APIs can enforce expected public outputs (`x10..x17`) in addition t
 
 ## Prover Construction
 
+- `DevProverBuilder::new(...)` accepts path and supports `with_cycles(...)`, `with_text_path(...)`, then `build()`.
 - `GpuProverBuilder::new(...)` accepts path and supports `with_worker_threads(...)`, `with_level(...)`, then `build()`.
 - `CpuProverBuilder::new(...)` accepts path and supports `with_worker_threads(...)`, `with_cycles(...)`, `with_ram_bound(...)`, then `build()`.
 - `build()` returns `Result<...>` and performs path/config validation.
 - CPU proving currently supports base-layer proving (`ProverLevel::Base`) only.
+- GPU proving requires enabling the `airbender-host/gpu-prover` crate feature.
 
 ## Runner Construction
 

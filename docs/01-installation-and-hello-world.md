@@ -110,8 +110,8 @@ For non-trivial input files, generate words from host-side values via `Inputs` m
 Generate and verify a proof:
 
 ```sh
-cargo airbender prove ./dist/app/app.bin --input ./input.hex --output ./proof.bin
-cargo airbender generate-vk ./dist/app/app.bin --output ./vk.bin
+cargo airbender prove ./dist/app/app.bin --input ./input.hex --output ./proof.bin --backend cpu --level base
+cargo airbender generate-vk ./dist/app/app.bin --output ./vk.bin --level base
 cargo airbender verify-proof ./proof.bin --vk ./vk.bin
 ```
 
@@ -123,7 +123,8 @@ cargo run
 cargo run -- --prove
 ```
 
-If CUDA is not configured on your machine, prefix host commands with `ZKSYNC_USE_CUDA_STUBS=true`.
+By default, proving uses the dev backend and does not require CUDA.
+To enable real GPU proving, build/run with `--features airbender-host/gpu-prover`.
 
 ## Prefer Full End-to-End Examples
 

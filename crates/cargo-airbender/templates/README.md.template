@@ -23,16 +23,12 @@ cd ../host
 cargo run
 ```
 
-If your machine does not have CUDA configured, use stubs while building/running host commands:
-
-```sh
-ZKSYNC_USE_CUDA_STUBS=true cargo build
-ZKSYNC_USE_CUDA_STUBS=true cargo run
-ZKSYNC_USE_CUDA_STUBS=true cargo run -- --prove
-```
-
 Run host execution + proof:
 
 ```sh
 cargo run -- --prove
 ```
+
+## Prover Backend
+
+__AIRBENDER_PROVER_BACKEND_DOC__

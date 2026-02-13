@@ -9,13 +9,17 @@ license.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = []
+gpu-prover = ["dep:gpu_prover", "execution_utils/gpu_prover"]
+
 [dependencies]
 airbender-core = { path = "../airbender-core" }
 airbender-codec = { path = "../airbender-codec" }
 serde = { workspace = true, features = ["derive"] }
 risc_v_simulator = { workspace = true }
-execution_utils = { workspace = true, features = ["gpu_prover"] }
-gpu_prover = { workspace = true }
+execution_utils = { workspace = true }
+gpu_prover = { workspace = true, optional = true }
 riscv_transpiler = { workspace = true, features = ["jit"] }
 sha3 = { workspace = true }
 thiserror = { workspace = true }

@@ -1,8 +1,9 @@
 use super::{
-    receipt_from_proof, resolve_app_bin_path, resolve_text_path, resolve_worker_threads,
+    receipt_from_real_proof, resolve_app_bin_path, resolve_text_path, resolve_worker_threads,
     ProveResult, Prover, DEFAULT_CPU_CYCLE_BOUND, DEFAULT_RAM_BOUND_BYTES,
 };
 use crate::error::{HostError, Result};
+use crate::proof::{Proof, RealProof};
 use crate::runner::{Runner, TranspilerRunnerBuilder};
 use execution_utils::setups;
 use execution_utils::unrolled;
@@ -127,7 +128,7 @@ impl Prover for CpuProver {
         }
 
         let oracle = QuasiUARTSource::new_with_reads(input_words.to_vec());
-        let proof = unrolled::prove_unrolled_for_machine_configuration_into_program_proof::<
+        let inner_proof = unrolled::prove_unrolled_for_machine_configuration_into_program_proof::<
             IMStandardIsaConfigWithUnsignedMulDiv,
         >(
             &self.binary_u32,
@@ -137,7 +138,8 @@ impl Prover for CpuProver {
             self.ram_bound,
             &self.worker,
         );
-        let receipt = receipt_from_proof(&proof);
+        let receipt = receipt_from_real_proof(&inner_proof);
+        let proof = Proof::Real(RealProof::new(super::ProverLevel::Base, inner_proof));
 
         Ok(ProveResult {
             proof,

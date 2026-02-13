@@ -1,5 +1,5 @@
 /// Execution output captured from simulator or prover results.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Receipt {
     pub registers: [u32; 32],
     pub output: [u32; 8],

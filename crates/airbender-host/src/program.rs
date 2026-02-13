@@ -1,10 +1,8 @@
 use crate::error::{HostError, Result};
-use crate::prover::{CpuProverBuilder, GpuProverBuilder};
+use crate::prover::{CpuProverBuilder, DevProverBuilder, GpuProverBuilder, ProverLevel};
 use crate::runner::{SimulatorRunnerBuilder, TranspilerRunnerBuilder};
-use crate::vk::{compute_unified_vk, verify_proof, UnifiedVk};
-use airbender_core::guest::Commit;
+use crate::verifier::{DevVerifierBuilder, RealVerifierBuilder};
 use airbender_core::host::manifest::Manifest;
-use sha3::Digest;
 use std::path::{Path, PathBuf};
 
 /// Loaded Airbender program distribution, including manifest and artifacts.
@@ -87,29 +85,23 @@ impl Program {
         GpuProverBuilder::new(self.app_bin())
     }
 
+    /// Create a development prover builder bound to this program.
+    pub fn dev_prover(&self) -> DevProverBuilder {
+        DevProverBuilder::new(self.app_bin())
+    }
+
     /// Create a CPU prover builder bound to this program.
     pub fn cpu_prover(&self) -> CpuProverBuilder {
         CpuProverBuilder::new(self.app_bin())
     }
 
-    /// Compute the unified verification key for this program.
-    pub fn compute_vk(&self) -> Result<UnifiedVk> {
-        compute_unified_vk(self.app_bin())
+    /// Create a development verifier builder bound to this program.
+    pub fn dev_verifier(&self) -> DevVerifierBuilder {
+        DevVerifierBuilder::new(self.app_bin())
     }
 
-    /// Verify a proof against a unified verification key and expected output.
-    pub fn verify(
-        &self,
-        proof: &execution_utils::unrolled::UnrolledProgramProof,
-        vk: &UnifiedVk,
-        expected_output: &dyn Commit,
-    ) -> Result<()> {
-        let app_bin_hash = hash_app_bin(self.app_bin())?;
-        verify_proof(proof, vk, Some(app_bin_hash), Some(expected_output))
+    /// Create a real verifier builder bound to this program.
+    pub fn real_verifier(&self, level: ProverLevel) -> RealVerifierBuilder {
+        RealVerifierBuilder::new(self.app_bin(), level)
     }
-}
-
-fn hash_app_bin(path: &Path) -> Result<[u8; 32]> {
-    let bytes = std::fs::read(path)?;
-    Ok(sha3::Keccak256::digest(&bytes).into())
 }

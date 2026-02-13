@@ -31,27 +31,40 @@ pub struct UnrolledVk {
 }
 
 pub fn compute_unified_vk(app_bin_path: &Path) -> Result<UnifiedVk> {
-    let app_bin_hash = hash_app_bin(app_bin_path)?;
+    #[cfg(not(feature = "gpu-prover"))]
+    {
+        let _ = app_bin_path;
+        return Err(HostError::Verification(
+            "recursion-unified verification key generation requires the `gpu-prover` feature"
+                .to_string(),
+        ));
+    }
 
-    // TODO: cache unified setup/layout artifacts on disk to avoid recomputing on every run.
-    let (binary, binary_u32) =
-        setups::pad_binary(execution_utils::unrolled_gpu::RECURSION_UNIFIED_BIN.to_vec());
-    let (text, _) =
-        setups::pad_binary(execution_utils::unrolled_gpu::RECURSION_UNIFIED_TXT.to_vec());
+    #[cfg(feature = "gpu-prover")]
+    {
+        let app_bin_hash = hash_app_bin(app_bin_path)?;
 
-    let unified_setup =
-        execution_utils::unified_circuit::compute_unified_setup_for_machine_configuration::<
-            IWithoutByteAccessIsaConfigWithDelegation,
-        >(&binary, &text);
-    let unified_layouts = execution_utils::setups::get_unified_circuit_artifact_for_machine_type::<
-        IWithoutByteAccessIsaConfigWithDelegation,
-    >(&binary_u32);
+        // TODO: cache unified setup/layout artifacts on disk to avoid recomputing on every run.
+        let (binary, binary_u32) =
+            setups::pad_binary(execution_utils::unrolled_gpu::RECURSION_UNIFIED_BIN.to_vec());
+        let (text, _) =
+            setups::pad_binary(execution_utils::unrolled_gpu::RECURSION_UNIFIED_TXT.to_vec());
 
-    Ok(UnifiedVk {
-        app_bin_hash,
-        unified_setup,
-        unified_layouts,
-    })
+        let unified_setup =
+            execution_utils::unified_circuit::compute_unified_setup_for_machine_configuration::<
+                IWithoutByteAccessIsaConfigWithDelegation,
+            >(&binary, &text);
+        let unified_layouts =
+            execution_utils::setups::get_unified_circuit_artifact_for_machine_type::<
+                IWithoutByteAccessIsaConfigWithDelegation,
+            >(&binary_u32);
+
+        Ok(UnifiedVk {
+            app_bin_hash,
+            unified_setup,
+            unified_layouts,
+        })
+    }
 }
 
 pub fn compute_unrolled_vk(app_bin_path: &Path, level: ProverLevel) -> Result<UnrolledVk> {
@@ -72,11 +85,24 @@ pub fn compute_unrolled_vk(app_bin_path: &Path, level: ProverLevel) -> Result<Un
             (binary, binary_u32, text)
         }
         ProverLevel::RecursionUnrolled => {
-            let (binary, binary_u32) =
-                setups::pad_binary(execution_utils::unrolled_gpu::RECURSION_UNROLLED_BIN.to_vec());
-            let (text, _) =
-                setups::pad_binary(execution_utils::unrolled_gpu::RECURSION_UNROLLED_TXT.to_vec());
-            (binary, binary_u32, text)
+            #[cfg(not(feature = "gpu-prover"))]
+            {
+                return Err(HostError::Verification(
+                    "recursion-unrolled verification key generation requires the `gpu-prover` feature"
+                        .to_string(),
+                ));
+            }
+
+            #[cfg(feature = "gpu-prover")]
+            {
+                let (binary, binary_u32) = setups::pad_binary(
+                    execution_utils::unrolled_gpu::RECURSION_UNROLLED_BIN.to_vec(),
+                );
+                let (text, _) = setups::pad_binary(
+                    execution_utils::unrolled_gpu::RECURSION_UNROLLED_TXT.to_vec(),
+                );
+                (binary, binary_u32, text)
+            }
         }
         ProverLevel::RecursionUnified => {
             return Err(HostError::Verification(

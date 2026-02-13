@@ -1,4 +1,4 @@
-use airbender_host::{Inputs, Program, Prover, ProverLevel, Result, Runner};
+use airbender_host::{Inputs, Program, Prover, Result, Runner, VerificationRequest, Verifier};
 use std::path::PathBuf;
 
 fn main() -> Result<()> {
@@ -25,10 +25,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let prover = program
-        .gpu_prover()
-        .with_level(ProverLevel::RecursionUnified)
-        .build()?;
+    let prover = program.dev_prover().build()?;
     let prove_result = prover.prove(inputs.words())?;
     let proof_output = prove_result.receipt.output[0];
     println!(
@@ -36,8 +33,13 @@ fn main() -> Result<()> {
         prove_result.cycles, proof_output
     );
 
-    let vk = program.compute_vk()?;
-    program.verify(&prove_result.proof, &vk, &expected)?;
+    let verifier = program.dev_verifier().build()?;
+    let vk = verifier.generate_vk()?;
+    verifier.verify(
+        &prove_result.proof,
+        &vk,
+        VerificationRequest::dev(inputs.words(), &expected),
+    )?;
     println!("Proof verified.");
 
     assert_eq!(

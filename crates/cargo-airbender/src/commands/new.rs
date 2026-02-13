@@ -1,4 +1,4 @@
-use crate::cli::{NewAllocatorArg, NewArgs};
+use crate::cli::{NewAllocatorArg, NewArgs, NewProverBackendArg};
 use crate::error::{CliError, Result};
 use crate::ui;
 use airbender_build::DEFAULT_GUEST_TOOLCHAIN;
@@ -53,6 +53,7 @@ struct ResolvedNewArgs {
     project_name: String,
     enable_std: bool,
     allocator: NewAllocatorArg,
+    prover_backend: NewProverBackendArg,
     sdk_path: Option<PathBuf>,
     sdk_version: Option<String>,
 }
@@ -105,6 +106,35 @@ pub fn run(args: NewArgs) -> Result<()> {
         "airbender-host",
     )?;
 
+    let (
+        host_dependency_features,
+        host_use_extra_imports,
+        host_prover_init,
+        host_verifier_init,
+        host_verification_request,
+        readme_prover_backend_doc,
+        host_run_command,
+    ) = match args.prover_backend {
+        NewProverBackendArg::Dev => (
+            "",
+            "",
+            "    let prover = program.dev_prover().build()?;",
+            "    let verifier = program.dev_verifier().build()?;",
+            "VerificationRequest::dev(inputs.words(), &expected_output)",
+            "Default prover backend: `dev`.\n\n`dev` mode does not run cryptographic proving; it emits a mock proof envelope and is ideal for development.",
+            "cd ../host && cargo run",
+        ),
+        NewProverBackendArg::Gpu => (
+            ", features = [\"gpu-prover\"]",
+            ", ProverLevel",
+            "    let prover = program\n        .gpu_prover()\n        .with_level(ProverLevel::RecursionUnified)\n        .build()?;",
+            "    let verifier = program.real_verifier(ProverLevel::RecursionUnified).build()?;",
+            "VerificationRequest::real(&expected_output)",
+            "Default prover backend: `gpu`.\n\n`gpu` mode runs real proving and requires a CUDA-capable NVIDIA GPU at runtime. You can compile with `ZKSYNC_USE_CUDA_STUBS=true`, but invoking GPU proving without CUDA setup will panic.",
+            "cd ../host && ZKSYNC_USE_CUDA_STUBS=true cargo run",
+        ),
+    };
+
     let guest_attributes = if args.enable_std {
         "#![no_main]"
     } else {
@@ -148,6 +178,21 @@ pub fn run(args: NewArgs) -> Result<()> {
         ("__AIRBENDER_SDK_DEP__", sdk_dependency.as_str()),
         ("__AIRBENDER_SDK_DEFAULT_FEATURES__", sdk_default_features),
         ("__AIRBENDER_HOST_DEP__", host_dependency.as_str()),
+        ("__AIRBENDER_HOST_DEP_FEATURES__", host_dependency_features),
+        (
+            "__AIRBENDER_HOST_USE_EXTRA_IMPORTS__",
+            host_use_extra_imports,
+        ),
+        ("__AIRBENDER_HOST_PROVER_INIT__", host_prover_init),
+        ("__AIRBENDER_HOST_VERIFIER_INIT__", host_verifier_init),
+        (
+            "__AIRBENDER_HOST_VERIFICATION_REQUEST__",
+            host_verification_request,
+        ),
+        (
+            "__AIRBENDER_PROVER_BACKEND_DOC__",
+            readme_prover_backend_doc,
+        ),
         ("__AIRBENDER_GUEST_ATTRIBUTES__", guest_attributes),
         ("__AIRBENDER_SDK_FEATURES__", sdk_features.as_str()),
         ("__AIRBENDER_MAIN_ATTR_ARGS__", main_attr_args),
@@ -171,7 +216,7 @@ pub fn run(args: NewArgs) -> Result<()> {
     ui::info("next steps");
     ui::command(format!("cd \"{}\"", args.path.display()));
     ui::command("cd guest && cargo airbender build");
-    ui::command("cd ../host && ZKSYNC_USE_CUDA_STUBS=true cargo run");
+    ui::command(host_run_command);
 
     Ok(())
 }
@@ -182,6 +227,7 @@ fn resolve_new_args(args: NewArgs) -> Result<ResolvedNewArgs> {
         name,
         enable_std,
         allocator,
+        prover_backend,
         yes,
         sdk_path,
         sdk_version,
@@ -193,7 +239,7 @@ fn resolve_new_args(args: NewArgs) -> Result<ResolvedNewArgs> {
     let inferred_name = infer_project_name(&path)?;
     let default_name = name.or(inferred_name);
 
-    let (project_name, enable_std, allocator) = if yes {
+    let (project_name, enable_std, allocator, prover_backend) = if yes {
         let project_name = default_name.ok_or_else(|| {
             CliError::new(format!(
                 "could not infer project name from destination `{}`",
@@ -201,13 +247,14 @@ fn resolve_new_args(args: NewArgs) -> Result<ResolvedNewArgs> {
             ))
             .with_hint("pass an explicit project name with `--name <project-name>`")
         })?;
-        (project_name, enable_std, allocator)
+        (project_name, enable_std, allocator, prover_backend)
     } else {
         ensure_interactive_terminal()?;
         (
             prompt_project_name(default_name.as_deref())?,
             prompt_enable_std(enable_std)?,
             prompt_allocator(allocator)?,
+            prompt_prover_backend(prover_backend)?,
         )
     };
 
@@ -216,6 +263,7 @@ fn resolve_new_args(args: NewArgs) -> Result<ResolvedNewArgs> {
         project_name,
         enable_std,
         allocator,
+        prover_backend,
         sdk_path,
         sdk_version,
     })
@@ -308,6 +356,34 @@ fn prompt_allocator(default: NewAllocatorArg) -> Result<NewAllocatorArg> {
         _ => {
             return Err(CliError::new(format!(
                 "invalid allocator selection index `{selected}`"
+            )));
+        }
+    })
+}
+
+fn prompt_prover_backend(default: NewProverBackendArg) -> Result<NewProverBackendArg> {
+    let options = [
+        "dev (mock proof for development)",
+        "gpu (real proving; CUDA required)",
+    ];
+    let default_index = match default {
+        NewProverBackendArg::Dev => 0,
+        NewProverBackendArg::Gpu => 1,
+    };
+
+    let selected = Select::new()
+        .with_prompt("Which prover backend to use")
+        .items(&options)
+        .default(default_index)
+        .interact()
+        .map_err(map_prompt_error)?;
+
+    Ok(match selected {
+        0 => NewProverBackendArg::Dev,
+        1 => NewProverBackendArg::Gpu,
+        _ => {
+            return Err(CliError::new(format!(
+                "invalid prover backend selection index `{selected}`"
             )));
         }
     })
@@ -575,6 +651,7 @@ mod tests {
             name: Some("hello-airbender".to_string()),
             enable_std: false,
             allocator: NewAllocatorArg::Talc,
+            prover_backend: NewProverBackendArg::Dev,
             yes: true,
             sdk_path: None,
             sdk_version: Some("0.1.0".to_string()),
@@ -600,7 +677,8 @@ mod tests {
         let host_toolchain = fs::read_to_string(destination.join("host/rust-toolchain.toml"))
             .expect("read host rust-toolchain");
 
-        assert!(root_readme.contains("ZKSYNC_USE_CUDA_STUBS=true"));
+        assert!(root_readme.contains("Default prover backend: `dev`"));
+        assert!(root_readme.contains("mock proof envelope"));
         assert!(root_gitignore.contains("target/"));
         assert!(guest_cargo.contains("name = \"hello-airbender-guest\""));
         assert!(guest_cargo.contains("airbender-sdk"));
@@ -613,9 +691,12 @@ mod tests {
             .contains("build-std = [\"alloc\", \"core\", \"panic_abort\", \"compiler_builtins\", \"std\", \"proc_macro\"]"));
         assert!(host_cargo.contains("name = \"hello-airbender-host\""));
         assert!(host_cargo.contains("airbender-host"));
+        assert!(!host_cargo.contains("features = [\"gpu-prover\"]"));
         assert!(host_cargo.contains("[profile.dev.package.keccak_special5]"));
         assert!(host_cargo.contains("[profile.release.package.setups]"));
         assert!(host_main.contains("Program::load"));
+        assert!(host_main.contains("program.dev_prover()"));
+        assert!(host_main.contains("program.dev_verifier()"));
         assert!(host_toolchain.contains(&format!("channel = \"{}\"", DEFAULT_GUEST_TOOLCHAIN)));
         assert!(!host_toolchain.contains("components"));
 
@@ -632,6 +713,7 @@ mod tests {
             name: Some("hello-airbender".to_string()),
             enable_std: true,
             allocator: NewAllocatorArg::Talc,
+            prover_backend: NewProverBackendArg::Dev,
             yes: true,
             sdk_path: None,
             sdk_version: Some("0.1.0".to_string()),
@@ -659,6 +741,7 @@ mod tests {
             name: Some("hello-airbender".to_string()),
             enable_std: false,
             allocator: NewAllocatorArg::Bump,
+            prover_backend: NewProverBackendArg::Dev,
             yes: true,
             sdk_path: None,
             sdk_version: Some("0.1.0".to_string()),
@@ -684,6 +767,7 @@ mod tests {
             name: Some("hello-airbender".to_string()),
             enable_std: false,
             allocator: NewAllocatorArg::Custom,
+            prover_backend: NewProverBackendArg::Dev,
             yes: true,
             sdk_path: None,
             sdk_version: Some("0.1.0".to_string()),
@@ -700,6 +784,41 @@ mod tests {
         assert!(guest_main
             .contains("#[airbender::main(allocator_init = crate::custom_allocator::init)]"));
         assert!(guest_main.contains("mod custom_allocator"));
+
+        fs::remove_dir_all(&root).expect("remove test directories");
+    }
+
+    #[test]
+    fn new_gpu_backend_generates_real_prover_setup() {
+        let root = test_workspace_dir("scaffold-gpu-prover");
+        let destination = root.join("hello-airbender");
+
+        run(NewArgs {
+            path: Some(destination.clone()),
+            name: Some("hello-airbender".to_string()),
+            enable_std: false,
+            allocator: NewAllocatorArg::Talc,
+            prover_backend: NewProverBackendArg::Gpu,
+            yes: true,
+            sdk_path: None,
+            sdk_version: Some("0.1.0".to_string()),
+        })
+        .expect("create gpu scaffold");
+
+        let root_readme =
+            fs::read_to_string(destination.join("README.md")).expect("read project root README");
+        let host_cargo =
+            fs::read_to_string(destination.join("host/Cargo.toml")).expect("read host Cargo");
+        let host_main =
+            fs::read_to_string(destination.join("host/src/main.rs")).expect("read host main");
+
+        assert!(root_readme.contains("Default prover backend: `gpu`"));
+        assert!(root_readme.contains("CUDA-capable NVIDIA GPU"));
+        assert!(root_readme.contains("ZKSYNC_USE_CUDA_STUBS=true"));
+        assert!(host_cargo.contains("features = [\"gpu-prover\"]"));
+        assert!(host_main.contains(".gpu_prover()"));
+        assert!(host_main.contains("program.real_verifier(ProverLevel::RecursionUnified)"));
+        assert!(host_main.contains("VerificationRequest::real(&expected_output)"));
 
         fs::remove_dir_all(&root).expect("remove test directories");
     }

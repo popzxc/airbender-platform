@@ -6,10 +6,38 @@ use airbender_host::Prover;
 
 pub fn run(args: ProveArgs) -> Result<()> {
     let input_words = input::parse_input_words(&args.input)?;
-    let level = as_host_level(args.level);
 
     let prove_result = match args.backend {
+        ProverBackendArg::Dev => {
+            if args.threads.is_some() {
+                tracing::warn!("ignoring `--threads` for dev backend");
+            }
+            if args.ram_bound.is_some() {
+                tracing::warn!("ignoring `--ram-bound` for dev backend");
+            }
+            if args.level != ProverLevelArg::RecursionUnified {
+                tracing::warn!("ignoring `--level` for dev backend");
+            }
+
+            let mut builder = airbender_host::DevProverBuilder::new(&args.app_bin);
+            if let Some(cycles) = args.cycles {
+                builder = builder.with_cycles(cycles);
+            }
+
+            let prover = builder.build().map_err(|err| {
+                CliError::with_source(
+                    format!(
+                        "failed to initialize dev prover for `{}`",
+                        args.app_bin.display()
+                    ),
+                    err,
+                )
+            })?;
+
+            prover.prove(&input_words)
+        }
         ProverBackendArg::Gpu => {
+            let level = as_host_level(args.level);
             let mut builder =
                 airbender_host::GpuProverBuilder::new(&args.app_bin).with_level(level);
             if let Some(threads) = args.threads {
@@ -28,6 +56,7 @@ pub fn run(args: ProveArgs) -> Result<()> {
             prover.prove(&input_words)
         }
         ProverBackendArg::Cpu => {
+            let level = as_host_level(args.level);
             if level != airbender_host::ProverLevel::Base {
                 return Err(
                     CliError::new("CPU backend currently supports only `--level base`")
@@ -80,7 +109,7 @@ pub fn run(args: ProveArgs) -> Result<()> {
 
     ui::success("proof generated");
     ui::field("backend", backend_name(args.backend));
-    ui::field("level", level_name(args.level));
+    ui::field("level", proof_level(args.backend, args.level));
     ui::field("cycles", prove_result.cycles);
     ui::field("output", args.output.display());
 
@@ -89,8 +118,16 @@ pub fn run(args: ProveArgs) -> Result<()> {
 
 fn backend_name(backend: ProverBackendArg) -> &'static str {
     match backend {
+        ProverBackendArg::Dev => "dev",
         ProverBackendArg::Cpu => "cpu",
         ProverBackendArg::Gpu => "gpu",
+    }
+}
+
+fn proof_level(backend: ProverBackendArg, level: ProverLevelArg) -> &'static str {
+    match backend {
+        ProverBackendArg::Dev => "dev",
+        ProverBackendArg::Cpu | ProverBackendArg::Gpu => level_name(level),
     }
 }
 
