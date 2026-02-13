@@ -5,6 +5,8 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::path::Path;
 
 pub fn generate(args: GenerateVkArgs) -> Result<()> {
+    ensure_gpu_vk_support()?;
+
     let vk = match args.level {
         ProverLevelArg::RecursionUnified => {
             let vk = airbender_host::compute_unified_vk(&args.app_bin).map_err(|err| {
@@ -46,7 +48,26 @@ pub fn generate(args: GenerateVkArgs) -> Result<()> {
     Ok(())
 }
 
+fn ensure_gpu_vk_support() -> Result<()> {
+    #[cfg(feature = "gpu-prover")]
+    {
+        Ok(())
+    }
+
+    #[cfg(not(feature = "gpu-prover"))]
+    {
+        Err(CliError::new(
+            "verification key generation requires GPU support in `cargo-airbender`",
+        )
+        .with_hint(
+            "install or run `cargo-airbender` with `--features gpu-prover` to use `generate-vk`",
+        ))
+    }
+}
+
 pub fn verify(args: VerifyProofArgs) -> Result<()> {
+    let expected_output_words = parse_expected_output_words(args.expected_output.as_deref())?;
+
     let proof: airbender_host::Proof = read_bincode(&args.proof).map_err(|err| {
         CliError::with_source(
             format!("failed to decode proof from `{}`", args.proof.display()),
@@ -74,16 +95,106 @@ pub fn verify(args: VerifyProofArgs) -> Result<()> {
             ));
         }
         airbender_host::Proof::Real(proof) => {
-            airbender_host::verify_real_proof_with_vk(proof, &vk)
+            let expected_output_commit = expected_output_words
+                .as_ref()
+                .map(|words| words as &dyn airbender_host::Commit);
+
+            airbender_host::verify_real_proof_with_vk(proof, &vk, expected_output_commit)
                 .map_err(|err| CliError::with_source("proof verification failed", err))?;
             proof.level()
         }
     };
 
+    if expected_output_words.is_none() {
+        tracing::warn!("public outputs were not provided; only proof/VK validity was checked");
+    }
+
     ui::success("proof verified");
     ui::field("level", host_level_name(level));
+    if let Some(words) = expected_output_words {
+        ui::field("expected_output", format_output_words(&words));
+    }
 
     Ok(())
+}
+
+fn parse_expected_output_words(raw: Option<&str>) -> Result<Option<[u32; 8]>> {
+    let Some(raw) = raw else {
+        return Ok(None);
+    };
+
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err(CliError::new("`--expected-output` cannot be empty")
+            .with_hint("provide comma-separated u32 words, for example `--expected-output 42`"));
+    }
+
+    let parts: Vec<&str> = trimmed.split(',').collect();
+    if parts.len() > 8 {
+        return Err(CliError::new(format!(
+            "`--expected-output` accepts at most 8 words (got {})",
+            parts.len()
+        ))
+        .with_hint(
+            "provide up to 8 comma-separated values for x10..x17; missing words are zero-padded",
+        ));
+    }
+
+    let mut words = [0u32; 8];
+    for (index, token) in parts.into_iter().enumerate() {
+        let token = token.trim();
+        if token.is_empty() {
+            return Err(CliError::new(format!(
+                "found an empty word at position {} in `--expected-output`",
+                index + 1
+            ))
+            .with_hint("use comma-separated values like `42,0,0`"));
+        }
+        words[index] = parse_output_word(token, index + 1)?;
+    }
+
+    Ok(Some(words))
+}
+
+fn parse_output_word(token: &str, position: usize) -> Result<u32> {
+    if let Some(hex) = token
+        .strip_prefix("0x")
+        .or_else(|| token.strip_prefix("0X"))
+    {
+        if hex.is_empty() {
+            return Err(CliError::new(format!(
+                "failed to parse output word at position {position}: `{token}`"
+            ))
+            .with_hint("hex output words must use `0x` followed by one or more hex digits"));
+        }
+
+        return u32::from_str_radix(hex, 16)
+            .map_err(|err| {
+                CliError::with_source(
+                    format!("failed to parse output word at position {position}: `{token}`"),
+                    err,
+                )
+            })
+            .map_err(|err| err.with_hint("use decimal or 0x-prefixed hexadecimal u32 words"));
+    }
+
+    token
+        .parse::<u32>()
+        .map_err(|err| {
+            CliError::with_source(
+                format!("failed to parse output word at position {position}: `{token}`"),
+                err,
+            )
+        })
+        .map_err(|err| err.with_hint("use decimal or 0x-prefixed hexadecimal u32 words"))
+}
+
+fn format_output_words(words: &[u32; 8]) -> String {
+    words
+        .iter()
+        .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 fn as_host_level(level: ProverLevelArg) -> airbender_host::ProverLevel {
@@ -136,4 +247,67 @@ fn write_bincode<T: Serialize>(path: &Path, value: &T) -> Result<()> {
     })?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[cfg(not(feature = "gpu-prover"))]
+    use crate::cli::GenerateVkArgs;
+    #[cfg(not(feature = "gpu-prover"))]
+    use std::path::PathBuf;
+
+    #[cfg(not(feature = "gpu-prover"))]
+    #[test]
+    fn generate_vk_requires_gpu_support() {
+        let err = generate(GenerateVkArgs {
+            app_bin: PathBuf::from("app.bin"),
+            output: PathBuf::from("vk.bin"),
+            level: ProverLevelArg::Base,
+        })
+        .expect_err("generate-vk must require gpu-prover support");
+
+        assert!(
+            err.to_string().contains("requires GPU support"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn parse_expected_output_none() {
+        let parsed = parse_expected_output_words(None).expect("parse should succeed");
+        assert!(parsed.is_none());
+    }
+
+    #[test]
+    fn parse_expected_output_pads_trailing_words() {
+        let parsed = parse_expected_output_words(Some("42")).expect("parse should succeed");
+        assert_eq!(parsed, Some([42, 0, 0, 0, 0, 0, 0, 0]));
+    }
+
+    #[test]
+    fn parse_expected_output_supports_hex_and_spaces() {
+        let parsed =
+            parse_expected_output_words(Some("0x2a, 0X01, 7")).expect("parse should succeed");
+        assert_eq!(parsed, Some([42, 1, 7, 0, 0, 0, 0, 0]));
+    }
+
+    #[test]
+    fn parse_expected_output_rejects_too_many_words() {
+        let err =
+            parse_expected_output_words(Some("1,2,3,4,5,6,7,8,9")).expect_err("parse should fail");
+        assert!(err.to_string().contains("at most 8 words"));
+    }
+
+    #[test]
+    fn parse_expected_output_rejects_empty_word() {
+        let err = parse_expected_output_words(Some("1,,3")).expect_err("parse should fail");
+        assert!(err.to_string().contains("empty word"));
+    }
+
+    #[test]
+    fn parse_expected_output_rejects_invalid_word() {
+        let err = parse_expected_output_words(Some("1,nope")).expect_err("parse should fail");
+        assert!(err.to_string().contains("failed to parse output word"));
+    }
 }

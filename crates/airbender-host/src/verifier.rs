@@ -314,17 +314,18 @@ impl Verifier for RealVerifier {
 
 /// Verify a real proof envelope against a real verification key.
 ///
-/// This helper intentionally validates proof/VK compatibility only.
-/// Use `RealVerifier` for app-hash and expected-output checks.
-pub fn verify_real_proof_with_vk(proof: &RealProof, vk: &VerificationKey) -> Result<()> {
+/// This helper validates proof/VK compatibility and optional expected public output.
+/// It intentionally does not enforce app.bin hash checks.
+pub fn verify_real_proof_with_vk(
+    proof: &RealProof,
+    vk: &VerificationKey,
+    expected_output: Option<&dyn Commit>,
+) -> Result<()> {
     match (proof.level(), vk) {
         (
             ProverLevel::RecursionUnified,
             VerificationKey::RealUnified(RealUnifiedVerificationKey { vk }),
-        ) => {
-            // TODO: Add a high-level CLI path for expected public-output checks.
-            verify_proof(proof.inner(), vk, None, None)
-        }
+        ) => verify_proof(proof.inner(), vk, None, expected_output),
         (
             ProverLevel::Base | ProverLevel::RecursionUnrolled,
             VerificationKey::RealUnrolled(RealUnrolledVerificationKey { level, vk }),
@@ -337,8 +338,7 @@ pub fn verify_real_proof_with_vk(proof: &RealProof, vk: &VerificationKey) -> Res
                 )));
             }
 
-            // TODO: Add a high-level CLI path for expected public-output checks.
-            verify_unrolled_proof(proof.inner(), vk, proof.level(), None, None)
+            verify_unrolled_proof(proof.inner(), vk, proof.level(), None, expected_output)
         }
         (_, VerificationKey::Dev(_)) => Err(HostError::Verification(
             "real proofs require real verification keys".to_string(),

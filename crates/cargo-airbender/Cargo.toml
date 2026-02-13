@@ -14,6 +14,10 @@ include = [
     "Cargo.toml",
 ]
 
+[features]
+default = []
+gpu-prover = ["airbender-host/gpu-prover"]
+
 [dependencies]
 airbender-build = { version = "0.1.0", path = "../airbender-build" }
 airbender-host = { version = "0.1.0", path = "../airbender-host" }

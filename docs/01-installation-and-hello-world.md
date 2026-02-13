@@ -28,6 +28,12 @@ You can also install from the public repository:
 cargo install --git https://github.com/popzxc/airbender-platform --branch main cargo-airbender --force
 ```
 
+If you need `cargo airbender generate-vk`, install with GPU support enabled:
+
+```sh
+cargo install --path crates/cargo-airbender --features gpu-prover --force
+```
+
 ## Hello World (Template Project)
 
 Create a new host+guest template project.

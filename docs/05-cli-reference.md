@@ -83,7 +83,7 @@ Prover backend choices:
 - `gpu`: real proving backend; requires a CUDA-capable NVIDIA GPU at runtime. You can compile with `ZKSYNC_USE_CUDA_STUBS=true`, but invoking proving without CUDA setup panics.
 
 If `custom` allocator is chosen, the guest code will have `#[airbender::main(allocator_init = ...)]` and an explicit allocator
-module you can replace.
+module you can replace. The `allocator_init` hook is required for `allocator-custom`.
 
 Default behavior (when neither `--sdk-path` nor `--sdk-version` is provided):
 
@@ -182,6 +182,12 @@ Options:
 - `--output <file>` (default: `vk.bin`)
 - `--level <base|recursion-unrolled|recursion-unified>`
 
+Notes:
+
+- `generate-vk` requires GPU-enabled `cargo-airbender` (`--features gpu-prover`).
+- Without that feature, the command fails before VK computation.
+- Local install example: `cargo install --path crates/cargo-airbender --features gpu-prover --force`.
+
 ## `cargo airbender verify-proof`
 
 Verifies a real proof against a real verification key file.
@@ -193,11 +199,21 @@ cargo airbender verify-proof ./proof.bin --vk ./vk.bin
 Options:
 
 - `--vk <file>` (required)
+- `--expected-output <words>` (optional): comma-separated public output words for `x10..x17` (decimal or `0x` hex)
 
 Notes:
 
 - dev proofs are rejected by this command with a dedicated error message.
-- this command currently verifies proof validity against VK only; to enforce expected public output and input checks, use `airbender-host` verifier APIs.
+- if `--expected-output` is omitted, CLI prints a warning and verifies proof/VK validity only.
+- when `--expected-output` has fewer than 8 words, remaining words are zero-padded.
+
+Examples:
+
+```sh
+cargo airbender verify-proof ./proof.bin --vk ./vk.bin --expected-output 42
+cargo airbender verify-proof ./proof.bin --vk ./vk.bin --expected-output 42,0,0,0
+cargo airbender verify-proof ./proof.bin --vk ./vk.bin --expected-output 0x2a
+```
 
 ## Input File Format (`--input`)
 

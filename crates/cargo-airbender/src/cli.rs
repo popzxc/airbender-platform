@@ -40,6 +40,7 @@ pub enum Commands {
     /// Generate a proof and write it as bincode.
     Prove(ProveArgs),
     /// Generate verification keys and write them as bincode.
+    /// Requires `cargo-airbender` built with `--features gpu-prover`.
     GenerateVk(GenerateVkArgs),
     /// Verify a proof against verification keys.
     VerifyProof(VerifyProofArgs),
@@ -182,6 +183,12 @@ pub struct VerifyProofArgs {
     pub proof: PathBuf,
     #[arg(long)]
     pub vk: PathBuf,
+    #[arg(
+        long,
+        value_name = "WORDS",
+        help = "Comma-separated expected public output words (x10..x17), decimal or 0x hex"
+    )]
+    pub expected_output: Option<String>,
 }
 
 #[derive(ValueEnum, Debug, Clone, Copy)]
@@ -334,5 +341,44 @@ mod tests {
             }
             other => panic!("unexpected command: {other:?}"),
         }
+    }
+
+    #[test]
+    fn parse_verify_proof_expected_output() {
+        let cli = Cli::parse_from([
+            "cargo-airbender",
+            "verify-proof",
+            "proof.bin",
+            "--vk",
+            "vk.bin",
+            "--expected-output",
+            "42,0,0",
+        ]);
+        match cli.command {
+            Commands::VerifyProof(args) => {
+                assert_eq!(args.proof, PathBuf::from("proof.bin"));
+                assert_eq!(args.vk, PathBuf::from("vk.bin"));
+                assert_eq!(args.expected_output.as_deref(), Some("42,0,0"));
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_verify_proof_rejects_repeated_expected_output() {
+        let err = Cli::try_parse_from([
+            "cargo-airbender",
+            "verify-proof",
+            "proof.bin",
+            "--vk",
+            "vk.bin",
+            "--expected-output",
+            "1",
+            "--expected-output",
+            "2",
+        ])
+        .expect_err("repeated expected-output flag should fail");
+
+        assert!(err.to_string().contains("cannot be used multiple times"));
     }
 }

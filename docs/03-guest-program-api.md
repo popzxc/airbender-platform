@@ -46,7 +46,7 @@ Rules:
 
 The macro provides the runtime entry point and commits the function result as guest output.
 
-For custom allocator wiring, you can provide an init hook:
+For custom allocator wiring (`allocator-custom`), you must provide an init hook:
 
 ```rust
 #[airbender::main(allocator_init = crate::custom_allocator::init)]

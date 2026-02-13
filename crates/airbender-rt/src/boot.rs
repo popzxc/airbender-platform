@@ -1,6 +1,11 @@
 //! Boot helpers for Airbender guest programs.
 
 /// Initialize the Airbender runtime and then execute the entrypoint.
+///
+/// This helper is available only for built-in allocator backends. When
+/// `allocator-custom` is enabled, use `start_with_allocator_init` so the
+/// runtime receives an explicit allocator init hook.
+#[cfg(not(feature = "allocator-custom"))]
 pub fn start<F>(entry: F) -> !
 where
     F: FnOnce() -> core::convert::Infallible,
