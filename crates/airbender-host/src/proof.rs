@@ -6,7 +6,6 @@ use std::path::Path;
 
 /// Wrapper around all proof flavors produced by host provers.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Proof {
     Dev(DevProof),
     Real(RealProof),

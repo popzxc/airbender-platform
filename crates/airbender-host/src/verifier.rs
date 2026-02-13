@@ -10,7 +10,6 @@ use std::path::{Path, PathBuf};
 
 /// Wrapper around all verification-key flavors.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum VerificationKey {
     Dev(DevVerificationKey),
     RealUnified(RealUnifiedVerificationKey),
