@@ -82,7 +82,7 @@ High-level:
 Lower-level:
 
 - `SimulatorRunnerBuilder::new(app_bin).with_...().build()`
-- `TranspilerRunnerBuilder::new(app_bin).with_...().build()`
+- `TranspilerRunnerBuilder::new(app_bin).with_...().with_jit().build()` (`with_jit()` is optional and x86_64-only)
 - `DevProverBuilder::new(app_bin).with_...().build()`
 - `GpuProverBuilder::new(app_bin).with_...().build()`
 - `CpuProverBuilder::new(app_bin).with_...().build()`

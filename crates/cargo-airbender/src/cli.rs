@@ -35,7 +35,7 @@ pub enum Commands {
     Run(RunArgs),
     /// Run app.bin with simulator profiling and emit flamegraph SVG.
     Flamegraph(FlamegraphArgs),
-    /// Run app.bin via the transpiler JIT.
+    /// Run app.bin via the transpiler.
     RunTranspiler(RunTranspilerArgs),
     /// Generate a proof and write it as bincode.
     Prove(ProveArgs),
@@ -148,6 +148,11 @@ pub struct RunTranspilerArgs {
     pub cycles: Option<usize>,
     #[arg(long)]
     pub text_path: Option<PathBuf>,
+    #[arg(
+        long,
+        help = "Enable transpiler JIT execution (x86_64 only); default is portable non-JIT mode"
+    )]
+    pub jit: bool,
 }
 
 #[derive(Args, Debug)]
@@ -221,6 +226,26 @@ mod tests {
             Commands::Run(args) => {
                 assert_eq!(args.app_bin, PathBuf::from("app.bin"));
                 assert_eq!(args.input, PathBuf::from("input.hex"));
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_run_transpiler_jit_flag() {
+        let cli = Cli::parse_from([
+            "cargo-airbender",
+            "run-transpiler",
+            "app.bin",
+            "--input",
+            "input.hex",
+            "--jit",
+        ]);
+        match cli.command {
+            Commands::RunTranspiler(args) => {
+                assert_eq!(args.app_bin, PathBuf::from("app.bin"));
+                assert_eq!(args.input, PathBuf::from("input.hex"));
+                assert!(args.jit);
             }
             other => panic!("unexpected command: {other:?}"),
         }

@@ -88,6 +88,9 @@ pub fn run_transpiler(args: RunTranspilerArgs) -> Result<()> {
     if let Some(text_path) = args.text_path.as_ref() {
         builder = builder.with_text_path(text_path);
     }
+    if args.jit {
+        builder = builder.with_jit();
+    }
     let runner = builder.build().map_err(|err| {
         CliError::with_source(
             format!(

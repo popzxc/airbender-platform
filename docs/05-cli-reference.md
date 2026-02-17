@@ -136,7 +136,7 @@ Options include:
 
 ## `cargo airbender run-transpiler`
 
-Runs `app.bin` via transpiler JIT.
+Runs `app.bin` via transpiler execution.
 
 ```sh
 cargo airbender run-transpiler ./dist/app/app.bin --input ./input.hex
@@ -146,6 +146,7 @@ Options:
 
 - `--cycles <n>`
 - `--text-path <file>`
+- `--jit`: enable transpiler JIT on x86_64 (without this flag, transpiler runs in non-JIT mode)
 
 ## `cargo airbender prove`
 
