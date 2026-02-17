@@ -60,7 +60,7 @@ fn ensure_gpu_vk_support() -> Result<()> {
             "verification key generation requires GPU support in `cargo-airbender`",
         )
         .with_hint(
-            "install or run `cargo-airbender` with `--features gpu-prover` to use `generate-vk`",
+            "rebuild `cargo-airbender` with default features or pass `--features gpu-prover` to use `generate-vk`",
         ))
     }
 }

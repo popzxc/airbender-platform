@@ -9,6 +9,13 @@ Use `airbender-host` from native host applications to execute, prove, and verify
 airbender-host = { path = "../../crates/airbender-host" }
 ```
 
+GPU support is enabled by default. To keep a dev-only host binary, disable default features:
+
+```toml
+[dependencies]
+airbender-host = { path = "../../crates/airbender-host", default-features = false }
+```
+
 ## Core Workflow with `Program`
 
 `Program` is the highest-level API.
@@ -102,7 +109,7 @@ Verification APIs can enforce expected public outputs (`x10..x17`) in addition t
 - `CpuProverBuilder::new(...)` accepts path and supports `with_worker_threads(...)`, `with_cycles(...)`, `with_ram_bound(...)`, then `build()`.
 - `build()` returns `Result<...>` and performs path/config validation.
 - CPU proving currently supports base-layer proving (`ProverLevel::Base`) only.
-- GPU proving requires enabling the `airbender-host/gpu-prover` crate feature.
+- GPU proving is enabled by default; if you disable default features, re-enable `gpu-prover`.
 
 ## Runner Construction
 

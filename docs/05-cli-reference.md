@@ -55,7 +55,7 @@ Creates a new host+guest project template.
 cargo airbender new [path]
 ```
 
-This command always runs in interactive mode and asks:
+By default, this command runs in interactive mode and asks:
 
 - project name
 - whether to enable `std`
@@ -166,7 +166,7 @@ Key options:
 Notes:
 
 - `dev` backend runs transpiler execution and emits a dev proof envelope.
-- `gpu` backend requires enabling the `airbender-host/gpu-prover` feature.
+- `gpu` backend requires GPU support in `cargo-airbender` (enabled by default).
 - `verify-proof` accepts only real proofs, so use `--backend cpu` or `--backend gpu` when preparing proofs for CLI verification.
 
 ## `cargo airbender generate-vk`
@@ -184,9 +184,9 @@ Options:
 
 Notes:
 
-- `generate-vk` requires GPU-enabled `cargo-airbender` (`--features gpu-prover`).
-- Without that feature, the command fails before VK computation.
-- Local install example: `cargo install --path crates/cargo-airbender --features gpu-prover --force`.
+- `generate-vk` requires GPU support in `cargo-airbender` (enabled by default).
+- If you installed with `--no-default-features`, the command fails before VK computation.
+- Local install example with GPU support disabled: `cargo install --path crates/cargo-airbender --no-default-features --force`.
 
 ## `cargo airbender verify-proof`
 

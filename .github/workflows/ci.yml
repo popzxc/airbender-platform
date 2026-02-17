@@ -7,6 +7,8 @@ on:
 jobs:
   lints:
     runs-on: ubuntu-latest
+    env:
+      ZKSYNC_USE_CUDA_STUBS: "true"
     steps:
       - uses: actions/checkout@v4
       - name: Read Rust toolchain
@@ -56,6 +58,8 @@ jobs:
 
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      ZKSYNC_USE_CUDA_STUBS: "true"
     steps:
       - uses: actions/checkout@v4
       - name: Read Rust toolchain

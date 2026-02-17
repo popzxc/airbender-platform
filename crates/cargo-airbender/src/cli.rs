@@ -40,7 +40,7 @@ pub enum Commands {
     /// Generate a proof and write it as bincode.
     Prove(ProveArgs),
     /// Generate verification keys and write them as bincode.
-    /// Requires `cargo-airbender` built with `--features gpu-prover`.
+    /// Requires GPU support in `cargo-airbender` (enabled by default).
     GenerateVk(GenerateVkArgs),
     /// Verify a proof against verification keys.
     VerifyProof(VerifyProofArgs),
@@ -161,7 +161,7 @@ pub struct ProveArgs {
         long,
         value_enum,
         default_value_t = ProverBackendArg::Dev,
-        long_help = "Select proving backend.\n- dev: mock proof envelope for development (no cryptographic proving).\n- cpu: real CPU proving (base level only).\n- gpu: real GPU proving; requires `cargo-airbender` built with `--features gpu-prover`."
+        long_help = "Select proving backend.\n- dev: mock proof envelope for development (no cryptographic proving).\n- cpu: real CPU proving (base level only).\n- gpu: real GPU proving; requires GPU-enabled `cargo-airbender` (enabled by default)."
     )]
     pub backend: ProverBackendArg,
     #[arg(short, long)]

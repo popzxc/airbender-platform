@@ -20,13 +20,13 @@ pub(super) struct ProverBackendProfile {
 pub(super) fn prover_backend_profile(backend: NewProverBackendArg) -> ProverBackendProfile {
     match backend {
         NewProverBackendArg::Dev => ProverBackendProfile {
-            host_dependency_features: "",
+            host_dependency_features: ", default-features = false",
             host_main_template: HOST_MAIN_DEV_TEMPLATE,
             readme_prover_backend_doc: README_BACKEND_DEV_DOC,
             host_run_command: "cd ../host && cargo run",
         },
         NewProverBackendArg::Gpu => ProverBackendProfile {
-            host_dependency_features: ", features = [\"gpu-prover\"]",
+            host_dependency_features: "",
             host_main_template: HOST_MAIN_GPU_TEMPLATE,
             readme_prover_backend_doc: README_BACKEND_GPU_DOC,
             host_run_command: "cd ../host && ZKSYNC_USE_CUDA_STUBS=true cargo run",

@@ -64,7 +64,7 @@ pub fn run(args: ProveArgs) -> Result<()> {
                     "GPU backend requires GPU support in `cargo-airbender`",
                 )
                 .with_hint(
-                    "install or run `cargo-airbender` with `--features gpu-prover` to use `--backend gpu`",
+                    "rebuild `cargo-airbender` with default features or pass `--features gpu-prover` to use `--backend gpu`",
                 ));
             }
         }

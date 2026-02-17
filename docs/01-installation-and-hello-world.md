@@ -28,11 +28,13 @@ You can also install from the public repository:
 cargo install --git https://github.com/popzxc/airbender-platform --branch main cargo-airbender --force
 ```
 
-By default, GPU support is disabled in the tool itself, so to be able to generate VKs or prove programs,
-install with GPU support enabled:
+By default, GPU support is enabled in `cargo-airbender`, so `prove --backend gpu` and `generate-vk`
+work out of the box.
+
+If you want to disable GPU support in the CLI binary, install with:
 
 ```sh
-cargo install --path crates/cargo-airbender --features gpu-prover --force
+cargo install --path crates/cargo-airbender --no-default-features --force
 ```
 
 You can still build (but not run) the project without having Nvidia GPU or CUDA installed by setting
@@ -134,7 +136,8 @@ cargo run -- --prove
 ```
 
 By default, proving uses the dev backend and does not require CUDA.
-To enable real GPU proving, build/run with `--features airbender-host/gpu-prover`.
+`airbender-host` exposes GPU proving by default; if you disabled default features in your host
+dependency, re-enable `gpu-prover` to call GPU APIs.
 
 ## Prefer Full End-to-End Examples
 

@@ -10,7 +10,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [features]
-default = []
+default = ["gpu-prover"]
 gpu-prover = ["dep:gpu_prover", "execution_utils/gpu_prover"]
 
 [dependencies]
