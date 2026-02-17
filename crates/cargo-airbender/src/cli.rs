@@ -157,7 +157,12 @@ pub struct ProveArgs {
     pub input: PathBuf,
     #[arg(long)]
     pub output: PathBuf,
-    #[arg(long, value_enum, default_value_t = ProverBackendArg::Dev)]
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = ProverBackendArg::Dev,
+        long_help = "Select proving backend.\n- dev: mock proof envelope for development (no cryptographic proving).\n- cpu: real CPU proving (base level only).\n- gpu: real GPU proving; requires `cargo-airbender` built with `--features gpu-prover`."
+    )]
     pub backend: ProverBackendArg,
     #[arg(short, long)]
     pub threads: Option<usize>,

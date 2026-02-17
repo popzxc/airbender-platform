@@ -1,5 +1,7 @@
 use crate::error::{HostError, Result};
-use crate::prover::{CpuProverBuilder, DevProverBuilder, GpuProverBuilder, ProverLevel};
+#[cfg(feature = "gpu-prover")]
+use crate::prover::GpuProverBuilder;
+use crate::prover::{CpuProverBuilder, DevProverBuilder, ProverLevel};
 use crate::runner::{SimulatorRunnerBuilder, TranspilerRunnerBuilder};
 use crate::verifier::{DevVerifierBuilder, RealVerifierBuilder};
 use airbender_core::host::manifest::Manifest;
@@ -83,6 +85,7 @@ impl Program {
         TranspilerRunnerBuilder::new(self.app_bin())
     }
 
+    #[cfg(feature = "gpu-prover")]
     /// Create a GPU prover builder bound to this program.
     pub fn gpu_prover(&self) -> GpuProverBuilder {
         GpuProverBuilder::new(self.app_bin())

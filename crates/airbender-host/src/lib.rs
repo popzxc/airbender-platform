@@ -16,9 +16,10 @@ pub use inputs::Inputs;
 pub use program::Program;
 pub use proof::{DevProof, Proof, RealProof};
 pub use prover::{
-    CpuProver, CpuProverBuilder, DevProver, DevProverBuilder, GpuProver, GpuProverBuilder,
-    ProveResult, Prover, ProverLevel,
+    CpuProver, CpuProverBuilder, DevProver, DevProverBuilder, ProveResult, Prover, ProverLevel,
 };
+#[cfg(feature = "gpu-prover")]
+pub use prover::{GpuProver, GpuProverBuilder};
 pub use receipt::Receipt;
 pub use runner::{
     resolve_cycles, ExecutionResult, FlamegraphConfig, Runner, SimulatorRunner,

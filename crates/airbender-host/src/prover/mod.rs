@@ -6,10 +6,12 @@ use std::path::{Path, PathBuf};
 
 mod cpu_prover;
 mod dev_prover;
+#[cfg(feature = "gpu-prover")]
 mod gpu_prover;
 
 pub use self::cpu_prover::{CpuProver, CpuProverBuilder};
 pub use self::dev_prover::{DevProver, DevProverBuilder};
+#[cfg(feature = "gpu-prover")]
 pub use self::gpu_prover::{GpuProver, GpuProverBuilder};
 
 pub(super) const DEFAULT_RAM_BOUND_BYTES: usize = 1 << 30;

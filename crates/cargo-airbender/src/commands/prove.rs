@@ -37,23 +37,36 @@ pub fn run(args: ProveArgs) -> Result<()> {
             prover.prove(&input_words)
         }
         ProverBackendArg::Gpu => {
-            let level = as_host_level(args.level);
-            let mut builder =
-                airbender_host::GpuProverBuilder::new(&args.app_bin).with_level(level);
-            if let Some(threads) = args.threads {
-                builder = builder.with_worker_threads(threads);
-            }
-            let prover = builder.build().map_err(|err| {
-                CliError::with_source(
-                    format!(
-                        "failed to initialize GPU prover for `{}`",
-                        args.app_bin.display()
-                    ),
-                    err,
-                )
-            })?;
+            #[cfg(feature = "gpu-prover")]
+            {
+                let level = as_host_level(args.level);
+                let mut builder =
+                    airbender_host::GpuProverBuilder::new(&args.app_bin).with_level(level);
+                if let Some(threads) = args.threads {
+                    builder = builder.with_worker_threads(threads);
+                }
+                let prover = builder.build().map_err(|err| {
+                    CliError::with_source(
+                        format!(
+                            "failed to initialize GPU prover for `{}`",
+                            args.app_bin.display()
+                        ),
+                        err,
+                    )
+                })?;
 
-            prover.prove(&input_words)
+                prover.prove(&input_words)
+            }
+
+            #[cfg(not(feature = "gpu-prover"))]
+            {
+                return Err(CliError::new(
+                    "GPU backend requires GPU support in `cargo-airbender`",
+                )
+                .with_hint(
+                    "install or run `cargo-airbender` with `--features gpu-prover` to use `--backend gpu`",
+                ));
+            }
         }
         ProverBackendArg::Cpu => {
             let level = as_host_level(args.level);
