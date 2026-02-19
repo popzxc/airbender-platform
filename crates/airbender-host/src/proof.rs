@@ -6,6 +6,7 @@ use std::path::Path;
 
 /// Wrapper around all proof flavors produced by host provers.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[allow(clippy::large_enum_variant)] // We don't want to optimize for the efficiency of the dev proof.
 pub enum Proof {
     Dev(DevProof),
     Real(RealProof),

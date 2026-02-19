@@ -37,6 +37,13 @@ pub fn run(args: ProveArgs) -> Result<()> {
             prover.prove(&input_words)
         }
         ProverBackendArg::Gpu => {
+            if args.cycles.is_some() {
+                tracing::warn!("ignoring `--cycles` for gpu backend");
+            }
+            if args.ram_bound.is_some() {
+                tracing::warn!("ignoring `--ram-bound` for gpu backend");
+            }
+
             #[cfg(feature = "gpu-prover")]
             {
                 let level = as_host_level(args.level);

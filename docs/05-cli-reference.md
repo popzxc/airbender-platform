@@ -167,7 +167,9 @@ Key options:
 Notes:
 
 - `dev` backend runs transpiler execution and emits a dev proof envelope.
+- `cpu` backend can only generate proofs for the base layer, and is not meant to be used outside of the debugging of the airbender itself.
 - `gpu` backend requires GPU support in `cargo-airbender` (enabled by default).
+- `--cycles` and `--ram-bound` are ignored on `gpu`/`dev` backends.
 - `verify-proof` accepts only real proofs, so use `--backend cpu` or `--backend gpu` when preparing proofs for CLI verification.
 
 ## `cargo airbender generate-vk`
