@@ -1,7 +1,7 @@
 use super::profiles::ProverBackendProfile;
 use crate::cli::NewAllocatorArg;
 use crate::error::{CliError, Result};
-use airbender_build::DEFAULT_GUEST_TOOLCHAIN;
+use airbender_build::{DEFAULT_GUEST_TARGET, DEFAULT_GUEST_TOOLCHAIN};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
@@ -57,7 +57,7 @@ impl<'a> TemplateContext<'a> {
         }
     }
 
-    fn replacements(self) -> [(&'static str, String); 11] {
+    fn replacements(self) -> [(&'static str, String); 12] {
         [
             ("__AIRBENDER_PROJECT_NAME__", self.project_name.to_string()),
             ("__AIRBENDER_SDK_DEP__", self.sdk_dependency.to_string()),
@@ -93,6 +93,10 @@ impl<'a> TemplateContext<'a> {
             (
                 "__AIRBENDER_RUST_TOOLCHAIN_CHANNEL__",
                 DEFAULT_GUEST_TOOLCHAIN.to_string(),
+            ),
+            (
+                "__AIRBENDER_GUEST_TARGET__",
+                DEFAULT_GUEST_TARGET.to_string(),
             ),
         ]
     }
