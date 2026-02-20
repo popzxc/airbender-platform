@@ -118,6 +118,12 @@ impl Prover for CpuProver {
                     .with_text_path(&self.app_text_path)
                     .build()?;
                 let outcome = cycle_estimator.run(input_words)?;
+                if !outcome.reached_end {
+                    return Err(HostError::Prover(format!(
+                        "automatic cycle estimation did not reach program end after {} cycles; provide explicit cycles to prove a bounded run",
+                        outcome.cycles_executed
+                    )));
+                }
                 outcome.cycles_executed
             }
         };
