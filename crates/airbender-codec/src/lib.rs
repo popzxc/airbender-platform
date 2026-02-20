@@ -1,6 +1,6 @@
 #![no_std]
 
-//! Versioned serialization and framing for Airbender host/guest communication.
+//! Versioned serialization for Airbender host/guest communication.
 
 extern crate alloc;
 
@@ -50,31 +50,6 @@ impl AirbenderCodec for AirbenderCodecV0 {
     }
 }
 
-/// Encode a byte payload into a word stream with a leading byte-length word.
-///
-/// Words are big-endian so the guest can reconstruct bytes by reading CSR words.
-pub fn frame_words_from_bytes(bytes: &[u8]) -> Vec<u32> {
-    let word_count = bytes.len().div_ceil(4);
-    let mut words = Vec::with_capacity(1 + word_count);
-    words.push(bytes.len() as u32);
-    for chunk in bytes.chunks(4) {
-        let mut padded = [0u8; 4];
-        padded[..chunk.len()].copy_from_slice(chunk);
-        words.push(u32::from_be_bytes(padded));
-    }
-    words
-}
-
-/// Reconstruct a byte payload from a length and word stream.
-pub fn bytes_from_frame_words(len: usize, words: &[u32]) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(len);
-    for word in words {
-        bytes.extend_from_slice(&word.to_be_bytes());
-    }
-    bytes.truncate(len);
-    bytes
-}
-
 #[derive(Debug)]
 pub enum CodecError {
     Encode(bincode::error::EncodeError),
@@ -114,14 +89,5 @@ mod tests {
         let encoded = AirbenderCodecV0::encode(&sample).expect("encode");
         let decoded: Sample = AirbenderCodecV0::decode(&encoded).expect("decode");
         assert_eq!(decoded, sample);
-    }
-
-    #[test]
-    fn framing_roundtrip() {
-        let bytes = b"airbender";
-        let words = frame_words_from_bytes(bytes);
-        assert_eq!(words[0], bytes.len() as u32);
-        let reconstructed = bytes_from_frame_words(bytes.len(), &words[1..]);
-        assert_eq!(reconstructed, bytes);
     }
 }

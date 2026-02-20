@@ -1,5 +1,6 @@
 use crate::error::Result;
-use airbender_codec::{frame_words_from_bytes, AirbenderCodec, AirbenderCodecV0};
+use airbender_codec::{AirbenderCodec, AirbenderCodecV0};
+use airbender_core::wire::frame_words_from_bytes;
 use std::fmt::Write as _;
 use std::path::Path;
 

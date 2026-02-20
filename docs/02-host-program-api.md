@@ -56,7 +56,7 @@ fn run() -> Result<()> {
 `Inputs` frames host data for guest reads.
 
 - `Inputs::push(&value)` serializes typed data via Airbender codec
-- `Inputs::push_bytes(&bytes)` pushes raw framed bytes
+- `Inputs::push_bytes(&bytes)` pushes raw bytes using the canonical input wire framing (`airbender_core::wire::frame_words_from_bytes`)
 - `Inputs::words()` exposes the low-level `u32` word stream
 - `Inputs::write_hex_file(path)` writes CLI-compatible hex input (`--input`)
 

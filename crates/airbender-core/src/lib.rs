@@ -2,7 +2,10 @@
 
 //! Shared definitions for Airbender tooling and runtimes.
 
+extern crate alloc;
+
 pub mod guest;
+pub mod wire;
 
 #[cfg(feature = "host")]
 pub mod manifest;

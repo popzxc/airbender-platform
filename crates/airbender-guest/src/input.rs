@@ -1,8 +1,8 @@
 //! Guest input helpers backed by the Airbender codec.
 
 use crate::transport::Transport;
-use airbender_codec::{bytes_from_frame_words, AirbenderCodec, AirbenderCodecV0, CodecError};
-use alloc::vec::Vec;
+use airbender_codec::{AirbenderCodec, AirbenderCodecV0, CodecError};
+use airbender_core::wire::read_framed_bytes_with;
 use core::fmt;
 
 /// Errors that can occur when decoding inputs on the guest.
@@ -46,13 +46,7 @@ pub fn read<T: serde::de::DeserializeOwned>() -> Result<T, GuestError> {
 pub fn read_with<T: serde::de::DeserializeOwned>(
     transport: &mut impl Transport,
 ) -> Result<T, GuestError> {
-    let len = transport.read_word() as usize;
-    let words_needed = len.div_ceil(4);
-    let mut words = Vec::with_capacity(words_needed);
-    for _ in 0..words_needed {
-        words.push(transport.read_word());
-    }
-    let bytes = bytes_from_frame_words(len, &words);
+    let bytes = read_framed_bytes_with(|| transport.read_word());
     AirbenderCodecV0::decode(&bytes).map_err(GuestError::Codec)
 }
 
@@ -60,7 +54,7 @@ pub fn read_with<T: serde::de::DeserializeOwned>(
 mod tests {
     use super::*;
     use crate::transport::MockTransport;
-    use airbender_codec::frame_words_from_bytes;
+    use airbender_core::wire::frame_words_from_bytes;
     use alloc::vec;
 
     #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
