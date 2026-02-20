@@ -68,16 +68,18 @@ unsafe impl GlobalAlloc for BumpAllocator {
         // no-op: bump allocator does not free
     }
 
-    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+    unsafe fn realloc(&self, ptr: *mut u8, old_layout: Layout, new_size: usize) -> *mut u8 {
         if ptr.is_null() {
-            return self
-                .alloc_inner(Layout::from_size_align(new_size, layout.align()).unwrap_or(layout));
+            return self.alloc_inner(Layout::from_size_align_unchecked(
+                new_size,
+                old_layout.align(),
+            ));
         }
 
-        let new_layout = Layout::from_size_align(new_size, layout.align()).unwrap_or(layout);
+        let new_layout = Layout::from_size_align_unchecked(new_size, old_layout.align());
         let new_ptr = self.alloc_inner(new_layout);
         if !new_ptr.is_null() {
-            let copy_len = core::cmp::min(layout.size(), new_size);
+            let copy_len = core::cmp::min(old_layout.size(), new_size);
             core::ptr::copy_nonoverlapping(ptr, new_ptr, copy_len);
         }
         new_ptr

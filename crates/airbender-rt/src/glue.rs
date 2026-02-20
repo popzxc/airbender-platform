@@ -78,20 +78,23 @@ pub fn sys_argv(_out_words: *mut u32, _out_nwords: usize, _arg_index: usize) -> 
 
 const WORD_SIZE: usize = core::mem::size_of::<u32>();
 
+/// # Safety
+///
+/// `nwords * WORD_SIZE` must not exceed `isize::MAX`.
 #[inline(never)]
 #[unsafe(no_mangle)]
 pub fn sys_alloc_words(nwords: usize) -> *mut u32 {
-    std::alloc::Global
-        .allocate(Layout::from_size_align(nwords * WORD_SIZE, WORD_SIZE).expect("Layout failed"))
-        .expect("Allocation failed")
-        .as_ptr() as *mut u32
+    sys_alloc_aligned(nwords * WORD_SIZE, WORD_SIZE) as *mut u32
 }
 
+/// # Safety
+///
+/// Allocation size of `bytes` with `align` alignment must not exceed `isize::MAX`.
 #[inline(never)]
 #[unsafe(no_mangle)]
-pub fn sys_alloc_aligned(nwords: usize, align: usize) -> *mut u8 {
+pub fn sys_alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
     std::alloc::Global
-        .allocate(Layout::from_size_align(nwords * WORD_SIZE, align).expect("Layout failed"))
+        .allocate(Layout::from_size_align(bytes, align).expect("Layout failed"))
         .expect("Allocation failed")
         .as_ptr() as *mut u8
 }
