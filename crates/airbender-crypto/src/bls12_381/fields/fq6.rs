@@ -1,7 +1,15 @@
 use super::{Fq, Fq2, Fq2Config};
-#[cfg(any(all(target_arch = "riscv32", feature = "bigint_ops"), test))]
+#[cfg(any(
+    all(target_arch = "riscv32", feature = "bigint_ops"),
+    test,
+    feature = "proving"
+))]
 use crate::ark_ff_delegation::MontFp;
-#[cfg(not(any(all(target_arch = "riscv32", feature = "bigint_ops"), test)))]
+#[cfg(not(any(
+    all(target_arch = "riscv32", feature = "bigint_ops"),
+    test,
+    feature = "proving"
+)))]
 use ark_ff::MontFp;
 use ark_ff::{AdditiveGroup, Field, Fp6, Fp6Config};
 
@@ -18,38 +26,36 @@ impl Fp6Config for Fq6Config {
 
     const FROBENIUS_COEFF_FP6_C1: &'static [Fq2] = &[
         // Fp2::NONRESIDUE^(((q^0) - 1) / 3)
-        Fq2::new(Fq::ONE, Fq::ZERO),
+        Fq2::new(
+            Fq::ONE,
+            Fq::ZERO,
+        ),
         // Fp2::NONRESIDUE^(((q^1) - 1) / 3)
         Fq2::new(
             Fq::ZERO,
-            MontFp!(
-                "4002409555221667392624310435006688643935503118305586438271171395842971157480381377015405980053539358417135540939436"
-            ),
+            MontFp!("4002409555221667392624310435006688643935503118305586438271171395842971157480381377015405980053539358417135540939436"),
         ),
         // Fp2::NONRESIDUE^(((q^2) - 1) / 3)
         Fq2::new(
-            MontFp!(
-                "793479390729215512621379701633421447060886740281060493010456487427281649075476305620758731620350"
-            ),
+            MontFp!("793479390729215512621379701633421447060886740281060493010456487427281649075476305620758731620350"),
             Fq::ZERO,
         ),
         // Fp2::NONRESIDUE^(((q^3) - 1) / 3)
-        Fq2::new(Fq::ZERO, Fq::ONE),
+        Fq2::new(
+            Fq::ZERO,
+            Fq::ONE,
+        ),
         // Fp2::NONRESIDUE^(((q^4) - 1) / 3)
         Fq2::new(
-            MontFp!(
-                "4002409555221667392624310435006688643935503118305586438271171395842971157480381377015405980053539358417135540939436"
-            ),
+            MontFp!("4002409555221667392624310435006688643935503118305586438271171395842971157480381377015405980053539358417135540939436"),
             Fq::ZERO,
         ),
         // Fp2::NONRESIDUE^(((q^5) - 1) / 3)
         Fq2::new(
             Fq::ZERO,
-            MontFp!(
-                "793479390729215512621379701633421447060886740281060493010456487427281649075476305620758731620350"
-            ),
+            MontFp!("793479390729215512621379701633421447060886740281060493010456487427281649075476305620758731620350"),
         ),
-    ];
+];
 
     #[rustfmt::skip]
     const FROBENIUS_COEFF_FP6_C2: &'static [Fq2] = &[

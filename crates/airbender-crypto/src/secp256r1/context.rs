@@ -17,7 +17,14 @@ impl GeneratorMultiplesTable {
         Self(pre_g)
     }
 
-    pub(super) fn get_ge(&self, n: i32) -> Affine {
+    pub(super) fn get_ge(&self, n: i32, w: usize) -> Affine {
+        debug_assert!(
+            (2..=31).contains(&w)
+                && ((n & 1) == 1)
+                && (n >= -((1 << (w - 1)) - 1))
+                && (n < (1 << (w - 1)))
+        );
+
         if n > 0 {
             self.0[(n - 1) as usize / 2].to_affine()
         } else {
@@ -26,13 +33,13 @@ impl GeneratorMultiplesTable {
     }
 }
 
-const fn odd_multiples(table: &mut [Storage; ECMULT_TABLE_SIZE_G], generator: &JacobianConst) {
+const fn odd_multiples(table: &mut [Storage; ECMULT_TABLE_SIZE_G], gen: &JacobianConst) {
     use const_for::const_for;
-    let mut gj = *generator;
+    let mut gj = *gen;
 
     table[0] = gj.to_storage();
 
-    let g_double = generator.double();
+    let g_double = gen.double();
 
     const_for!(i in 1..ECMULT_TABLE_SIZE_G => {
         gj = gj.add(&g_double);

@@ -1,38 +1,28 @@
 #[cfg(all(target_arch = "riscv32", not(feature = "bigint_ops")))]
 compile_error!("feature `bigint_ops` must be activated for RISC-V target");
 
-use core::mem::MaybeUninit;
-
 use crate::ark_ff_delegation::{BigInt, BigIntMacro, Fp, Fp256, MontBackend, MontConfig};
 use crate::bigint_delegation::{u256, DelegatedModParams, DelegatedMontParams};
 use ark_ff::{AdditiveGroup, Zero};
 
-#[cfg(any(all(target_arch = "riscv32", feature = "bigint_ops"), test))]
-pub fn init() {
-    unsafe {
-        MODULUS.as_mut_ptr().write(FrConfig::MODULUS);
-        REDUCTION_CONST.as_mut_ptr().write(MONT_REDUCTION_CONSTANT);
-    }
-}
-
-static mut MODULUS: MaybeUninit<BigInt<4>> = MaybeUninit::uninit();
-static mut REDUCTION_CONST: MaybeUninit<BigInt<4>> = MaybeUninit::uninit();
-
-const MONT_REDUCTION_CONSTANT: BigInt<4> =
+static MONT_REDUCTION_CONSTANT: BigInt<4> =
     BigIntMacro!("27711634432943687283656245953990505159342029877880134060146103271536583507967");
+static MODULUS: BigInt<4> = FrConfig::MODULUS;
 
 #[derive(Default, Debug)]
 pub struct FrParams;
 
 impl DelegatedModParams<4> for FrParams {
-    unsafe fn modulus() -> &'static BigInt<4> {
-        unsafe { MODULUS.assume_init_ref() }
+    const MODULUS_BITSIZE: usize = 255;
+
+    fn modulus() -> &'static BigInt<4> {
+        &MODULUS
     }
 }
 
 impl DelegatedMontParams<4> for FrParams {
-    unsafe fn reduction_const() -> &'static BigInt<4> {
-        unsafe { REDUCTION_CONST.assume_init_ref() }
+    fn reduction_const() -> &'static BigInt<4> {
+        &MONT_REDUCTION_CONSTANT
     }
 }
 
@@ -159,7 +149,7 @@ fn __gcd_inverse(a: &Fr) -> Option<Fr> {
     let mut c = Fp::zero();
     let modulus = Fr::MODULUS;
 
-    while !u256::is_one(&mut u) && !u256::is_one(&mut v) {
+    while !u256::is_one(&u) && !u256::is_one(&v) {
         while u.is_even() {
             u.div2();
 
@@ -198,7 +188,7 @@ fn __gcd_inverse(a: &Fr) -> Option<Fr> {
         }
     }
 
-    if u256::is_one(&mut u) {
+    if u256::is_one(&u) {
         Some(b)
     } else {
         Some(c)
@@ -223,15 +213,9 @@ mod tests {
     use super::Fr;
     use ark_ff::{AdditiveGroup, Field, Zero};
     use proptest::{prop_assert_eq, proptest};
-    fn init() {
-        super::init();
-        crate::bigint_delegation::init();
-    }
 
-    #[ignore = "requires single threaded runner"]
     #[test]
     fn test_inverse_properties() {
-        init();
         proptest!(|(x: Fr)| {
             if !x.is_zero() {
                 prop_assert_eq!(x.inverse().unwrap().inverse().unwrap(), x);
@@ -242,10 +226,8 @@ mod tests {
         })
     }
 
-    #[ignore = "requires single threaded runner"]
     #[test]
     fn test_mul_properties() {
-        init();
         proptest!(|(x: Fr, y: Fr, z: Fr)| {
             prop_assert_eq!(x * y, y * x);
             prop_assert_eq!((x * y) * z, x * (y * z));
@@ -255,10 +237,8 @@ mod tests {
         })
     }
 
-    #[ignore = "requires single threaded runner"]
     #[test]
     fn test_add_properties() {
-        init();
         proptest!(|(x: Fr, y: Fr, z: Fr)| {
             prop_assert_eq!(x + y, y + x);
             prop_assert_eq!(x + Fr::ZERO, x);

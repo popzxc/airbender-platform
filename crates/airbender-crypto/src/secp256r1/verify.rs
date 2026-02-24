@@ -27,7 +27,10 @@ pub fn verify(
     let u1 = z * &s_inv;
     let u2 = r * &s_inv;
 
-    let x = ecmult(pk, u2, u1, &TABLE_G).to_affine().x;
+    let x = ecmult(pk, u2, u1, &TABLE_G)
+        .to_affine()
+        .reject_identity()?
+        .x;
 
     let recovered = Scalar::reduce_be_bytes(&x.to_be_bytes());
 
@@ -55,11 +58,11 @@ fn ecmult(a: Jacobian, na: Scalar, ng: Scalar, table_g: &GeneratorMultiplesTable
         r.double_assign();
 
         if let Some(n) = wnaf_a.get_digit(i) {
-            r.add_assign(&table_a.get(n));
+            r.add_assign(&table_a.get(n, WINDOW_A));
         }
 
         if let Some(n) = wnaf_ng.get_digit(i) {
-            r.add_ge_assign(&table_g.get_ge(n));
+            r.add_ge_assign(&table_g.get_ge(n, WINDOW_G));
         }
     }
 
@@ -93,7 +96,14 @@ impl OddMultiplesTable {
         })
     }
 
-    fn get(&self, n: i32) -> Jacobian {
+    fn get(&self, n: i32, w: usize) -> Jacobian {
+        debug_assert!(
+            (2..=31).contains(&w)
+                && ((n & 1) == 1)
+                && (n >= -((1 << (w - 1)) - 1))
+                && (n < (1 << (w - 1)))
+        );
+
         if n > 0 {
             self.0[(n - 1) as usize / 2]
         } else {
@@ -113,17 +123,8 @@ mod test {
         test_vectors::MUL_TEST_VECTORS,
     };
 
-    #[cfg(feature = "bigint_ops")]
-    fn init() {
-        crate::secp256r1::init();
-        crate::bigint_delegation::init();
-    }
-
     #[test]
     fn test_ecmult_mix() {
-        #[cfg(feature = "bigint_ops")]
-        init();
-
         assert_eq!(
             JacobianConst::GENERATOR.double().to_affine(),
             ecmult(Jacobian::GENERATOR, Scalar::ONE, Scalar::ONE, &TABLE_G).to_affine()
@@ -193,9 +194,6 @@ mod test {
 
     #[test]
     fn test_ecmult() {
-        #[cfg(feature = "bigint_ops")]
-        init();
-
         for (k_bytes, x_bytes, y_bytes) in MUL_TEST_VECTORS {
             let k = Scalar::reduce_be_bytes(k_bytes);
             let expected = Jacobian {

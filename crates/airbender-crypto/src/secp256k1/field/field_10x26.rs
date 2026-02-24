@@ -750,7 +750,6 @@ impl FieldElement10x26 {
 }
 
 #[derive(Clone, Copy, Debug)]
-#[repr(align(32))]
 pub struct FieldStorage10x26(pub(super) [u32; 8]);
 
 impl FieldStorage10x26 {
@@ -773,27 +772,17 @@ impl FieldStorage10x26 {
         ])
     }
 
-    // #[cfg(feature = "bigint_ops")]
-    // #[inline(always)]
-    // pub(super) fn to_field_elem(self) -> crate::secp256k1::field::field_8x32::FieldElement8x32 {
-    //     let mut res = [0; 4];
-    //     let words = self.0;
-    //     let mut i = 0;
-    //     while i < 4 {
-    //         res[i] = words[2 * i] as u64 + ((words[2 * i + 1] as u64) << 32);
-    //         i += 1;
-    //     }
-    //     crate::secp256k1::field::field_8x32::FieldElement8x32::from_words(res)
-    // }
-
     #[cfg(feature = "bigint_ops")]
     #[inline(always)]
     pub(super) fn to_field_elem(self) -> crate::secp256k1::field::field_8x32::FieldElement8x32 {
-        unsafe {
-            // SAFETY: we control internal representations in both source and destination types,
-            // and their size and alignment are the same
-            core::mem::transmute(self)
+        let mut res = [0; 4];
+        let words = self.0;
+        let mut i = 0;
+        while i < 4 {
+            res[i] = words[2 * i] as u64 + ((words[2 * i + 1] as u64) << 32);
+            i += 1;
         }
+        crate::secp256k1::field::field_8x32::FieldElement8x32::from_words(res)
     }
 }
 
@@ -811,10 +800,10 @@ impl proptest::arbitrary::Arbitrary for FieldElement10x26 {
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
         use proptest::prelude::{any, Strategy};
 
-        any::<[u32; 10]>().prop_map(|limbs| Self(limbs).normalize())
+        any::<[u8; 32]>().prop_map(|bytes| Self::from_bytes_unchecked(&bytes).normalize())
     }
 
-    type Strategy = proptest::arbitrary::Mapped<[u32; 10], Self>;
+    type Strategy = proptest::arbitrary::Mapped<[u8; 32], Self>;
 }
 
 #[cfg(test)]

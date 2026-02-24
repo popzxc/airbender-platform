@@ -1,43 +1,32 @@
 use crate::ark_ff_delegation::{BigInt, BigIntMacro, BigInteger};
 use crate::bigint_delegation::{u256, DelegatedBarretParams, DelegatedModParams};
 use crate::k256::FieldBytes;
-use core::mem::MaybeUninit;
 
 use super::field_10x26::FieldStorage10x26;
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct FieldElement8x32(pub(super) BigInt<4>);
 
-static mut MODULUS: MaybeUninit<BigInt<4>> = MaybeUninit::uninit();
-static mut NEG_MODULUS: MaybeUninit<BigInt<4>> = MaybeUninit::uninit();
+static MODULUS: BigInt<4> = FieldElement8x32::MODULUS;
+static NEG_MODULUS: BigInt<4> = FieldElement8x32::NEG_MODULUS;
 
 #[derive(Debug, Default)]
 pub(super) struct FieldParams;
 
 impl DelegatedModParams<4> for FieldParams {
-    unsafe fn modulus() -> &'static BigInt<4> {
-        unsafe { MODULUS.assume_init_ref() }
+    const MODULUS_BITSIZE: usize = 256;
+
+    fn modulus() -> &'static BigInt<4> {
+        &MODULUS
     }
 }
 
 impl DelegatedBarretParams<4> for FieldParams {
-    unsafe fn neg_modulus() -> &'static BigInt<4> {
-        unsafe { NEG_MODULUS.assume_init_ref() }
+    fn neg_modulus() -> &'static BigInt<4> {
+        &NEG_MODULUS
     }
 }
 
-#[cfg(any(all(target_arch = "riscv32", feature = "bigint_ops"), test))]
-pub fn init() {
-    unsafe {
-        MODULUS.as_mut_ptr().write(FieldElement8x32::MODULUS.0);
-        NEG_MODULUS
-            .as_mut_ptr()
-            .write(FieldElement8x32::NEG_MODULUS.0);
-    }
-}
-
-// TODO: Investigate the correct approach to avoid warning here
-#[allow(dead_code)]
 impl FieldElement8x32 {
     pub(super) const ZERO: Self = Self(BigInt::zero());
     pub(super) const BETA: Self = Self(BigIntMacro!(
@@ -45,10 +34,10 @@ impl FieldElement8x32 {
     ));
     pub(super) const ONE: Self = Self(BigInt::one());
     // 2^256 - MODULUS
-    const NEG_MODULUS: Self = Self(BigIntMacro!("4294968273"));
-    const MODULUS: Self = Self(BigIntMacro!(
+    const NEG_MODULUS: BigInt<4> = BigIntMacro!("4294968273");
+    const MODULUS: BigInt<4> = BigIntMacro!(
         "115792089237316195423570985008687907853269984665640564039457584007908834671663"
-    ));
+    );
 
     #[inline(always)]
     pub(super) const fn from_bytes_unchecked(bytes: &[u8; 32]) -> Self {
@@ -59,7 +48,7 @@ impl FieldElement8x32 {
     pub(super) fn from_bytes(bytes: &[u8; 32]) -> Option<Self> {
         let value = Self::from_bytes_unchecked(bytes);
 
-        if u256::leq(&value.0, &Self::MODULUS.0) {
+        if u256::lt(&value.0, &Self::MODULUS) {
             Some(value)
         } else {
             None
@@ -221,7 +210,7 @@ impl FieldElement8x32 {
 #[cfg(test)]
 impl PartialEq for FieldElement8x32 {
     fn eq(&self, other: &Self) -> bool {
-        unsafe { u256::eq_mod::<FieldParams>(&self.0, &other.0) }
+        u256::eq(&self.0, &other.0)
     }
 }
 
@@ -243,15 +232,8 @@ mod tests {
     use super::FieldElement8x32;
     use proptest::{prop_assert_eq, proptest};
 
-    fn init() {
-        crate::secp256k1::init();
-        crate::bigint_delegation::init();
-    }
-
-    #[ignore = "requires single threaded runner"]
     #[test]
     fn test_invert() {
-        init();
         proptest!(|(x: FieldElement8x32)| {
             let mut a = x;
             a.invert_in_place();
@@ -270,10 +252,8 @@ mod tests {
         })
     }
 
-    #[ignore = "requires single threaded runner"]
     #[test]
     fn test_mul() {
-        init();
         proptest!(|(x: FieldElement8x32, y: FieldElement8x32, z: FieldElement8x32)| {
             let mut a = x;
             let mut b = y;
@@ -315,10 +295,8 @@ mod tests {
         })
     }
 
-    #[ignore = "requires single threaded runner"]
     #[test]
     fn test_add() {
-        init();
         proptest!(|(x: FieldElement8x32, y: FieldElement8x32, z: FieldElement8x32)| {
             let mut a = x;
             let mut b = y;
@@ -361,7 +339,6 @@ mod tests {
         })
     }
 
-    #[ignore = "requires single threaded runner"]
     #[test]
     fn from_bytes_round() {
         proptest!(|(bytes: [u8; 32])| {
@@ -369,7 +346,6 @@ mod tests {
         })
     }
 
-    #[ignore = "requires single threaded runner"]
     #[test]
     fn to_bytes_round() {
         proptest!(|(x: FieldElement8x32)| {

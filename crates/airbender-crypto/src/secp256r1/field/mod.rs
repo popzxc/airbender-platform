@@ -1,4 +1,8 @@
-#[cfg(any(all(target_arch = "riscv32", feature = "bigint_ops"), test))]
+#[cfg(any(
+    all(target_arch = "riscv32", feature = "bigint_ops"),
+    test,
+    feature = "proving"
+))]
 mod fe32_delegation;
 
 mod fe64;
@@ -6,7 +10,10 @@ mod fe64;
 use core::ops::MulAssign;
 
 cfg_if::cfg_if! {
-    if #[cfg(all(target_arch = "riscv32", feature = "bigint_ops"))] {
+    if #[cfg(any(
+        all(target_arch = "riscv32", feature = "bigint_ops"),
+        feature = "proving"
+    ))] {
         pub(super) use fe32_delegation::FieldElement;
     } else {
         pub(super) use fe64::FieldElement;
@@ -14,9 +21,6 @@ cfg_if::cfg_if! {
 }
 
 pub(super) use fe64::FieldElement as FieldElementConst;
-
-#[cfg(any(all(target_arch = "riscv32", feature = "bigint_ops"), test))]
-pub use fe32_delegation::init;
 
 use super::Secp256r1Err;
 
@@ -26,12 +30,12 @@ const R2: [u64; 4] = [3, 18446744056529682431, 18446744073709551614, 21474836477
 const REDUCTION_CONST: [u64; 4] = [1, 4294967296, 0, 18446744069414584322];
 
 impl FieldElement {
-    // montgomerry form
+    // montgomery form
     pub(super) const HALF: Self = Self::from_words_unchecked([0, 0, 0, 9223372036854775808]);
-    // montgomerry form
+    // montgomery form
     pub(super) const EQUATION_A: Self =
         Self::from_words_unchecked([18446744073709551612, 17179869183, 0, 18446744056529682436]);
-    // montgomerry form
+    // montgomery form
     pub(super) const EQUATION_B: Self = Self::from_words_unchecked([
         15608596021259845087,
         12461466548982526096,
@@ -135,12 +139,18 @@ impl FieldElementConst {
         x
     }
 
-    #[cfg(not(all(target_arch = "riscv32", feature = "bigint_ops")))]
+    #[cfg(not(any(
+        all(target_arch = "riscv32", feature = "bigint_ops"),
+        feature = "proving"
+    )))]
     pub(super) const fn to_fe(self) -> FieldElement {
         self
     }
 
-    #[cfg(all(target_arch = "riscv32", feature = "bigint_ops"))]
+    #[cfg(any(
+        all(target_arch = "riscv32", feature = "bigint_ops"),
+        feature = "proving"
+    ))]
     pub(super) const fn to_fe(self) -> FieldElement {
         use crate::ark_ff_delegation::BigInt;
 
@@ -155,17 +165,8 @@ mod tests {
     use super::{FieldElement, FieldElementConst};
     use proptest::{prop_assert_eq, proptest};
 
-    #[cfg(feature = "bigint_ops")]
-    fn init() {
-        crate::secp256r1::init();
-        crate::bigint_delegation::init();
-    }
-
     #[test]
     fn test_mul() {
-        #[cfg(feature = "bigint_ops")]
-        init();
-
         proptest!(|(x: FieldElement, y: FieldElement, z: FieldElement)| {
             let mut a;
             let mut b;
@@ -212,9 +213,6 @@ mod tests {
 
     #[test]
     fn test_add() {
-        #[cfg(feature = "bigint_ops")]
-        init();
-
         proptest!(|(x: FieldElement, y: FieldElement, z: FieldElement)| {
             let mut a;
             let mut b;
@@ -261,9 +259,6 @@ mod tests {
 
     #[test]
     fn test_invert() {
-        #[cfg(feature = "bigint_ops")]
-        init();
-
         proptest!(|(x: FieldElement)| {
 
             let mut a = x;
@@ -292,9 +287,6 @@ mod tests {
 
     #[test]
     fn test_half() {
-        #[cfg(feature = "bigint_ops")]
-        init();
-
         let two = FieldElement::from_words([2, 0, 0, 0]);
         let mut one = two;
         one.mul_assign(&FieldElement::HALF);
@@ -303,9 +295,6 @@ mod tests {
 
     #[test]
     fn test_double() {
-        #[cfg(feature = "bigint_ops")]
-        init();
-
         let two = FieldElement::from_words([2, 0, 0, 0]);
         proptest!(|(x: FieldElement)| {
             let mut a = x;
@@ -322,9 +311,6 @@ mod tests {
 
     #[test]
     fn test_mul_int() {
-        #[cfg(feature = "bigint_ops")]
-        init();
-
         proptest!(|(x: FieldElement)| {
             let mut a = x;
             let mut b = x;
@@ -366,10 +352,7 @@ mod tests {
     }
 
     #[test]
-    fn montgomerry_repr_round() {
-        #[cfg(feature = "bigint_ops")]
-        init();
-
+    fn montgomery_repr_round() {
         proptest!(|(x: FieldElement)| {
             prop_assert_eq!(x.to_integer().to_representation(), x);
             prop_assert_eq!(x.to_representation().to_integer(), x);
@@ -378,9 +361,6 @@ mod tests {
 
     #[test]
     fn bytes_round() {
-        #[cfg(feature = "bigint_ops")]
-        init();
-
         proptest!(|(bytes: [u8; 32])| {
             if let Ok(x) = FieldElement::from_be_bytes(&bytes) {
                 prop_assert_eq!(x.to_be_bytes(), bytes);

@@ -1,17 +1,30 @@
-#[cfg(not(all(feature = "single_round_with_control", target_arch = "riscv32")))]
+#[cfg(not(any(
+    all(feature = "single_round_with_control", target_arch = "riscv32"),
+    feature = "proving"
+)))]
 mod naive;
 
-#[cfg(not(all(feature = "single_round_with_control", target_arch = "riscv32")))]
+#[cfg(not(any(
+    all(feature = "single_round_with_control", target_arch = "riscv32"),
+    feature = "proving"
+)))]
 pub use naive::Blake2s256;
 
-#[cfg(all(feature = "single_round_with_control", target_arch = "riscv32"))]
+#[cfg(any(
+    all(feature = "single_round_with_control", target_arch = "riscv32"),
+    feature = "proving"
+))]
 mod delegated_extended;
 
-#[cfg(all(feature = "single_round_with_control", target_arch = "riscv32"))]
+#[cfg(any(
+    all(feature = "single_round_with_control", target_arch = "riscv32"),
+    feature = "proving"
+))]
 pub use delegated_extended::{initialize_blake2s_delegation_context, Blake2s256};
 
-// Multiple tests to compare delegated BLAKE2s with the reference implementation.
-// Intended for guest integration harnesses that can call `run_tests()`.
+// Multiple tests to compare delegation blake with external implementation.
+// To run - please execute the run_tests inside the main workload method.
+// Then compile the zksync_os (dump_bin.sh) - and run it (cargo test from zksync_os_runner)
 #[cfg(feature = "blake2s_tests")]
 pub mod blake2s_tests {
     pub fn run_tests() {
@@ -73,4 +86,5 @@ pub mod blake2s_tests {
     }
 }
 
-// TODO: Add a platform-native guest integration harness for delegated BLAKE2s.
+// TODO: Port zksync_os_runner-based guest harness tests to an airbender-platform
+// harness before re-enabling the upstream test module.

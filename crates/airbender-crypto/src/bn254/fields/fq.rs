@@ -1,33 +1,19 @@
 #[cfg(all(target_arch = "riscv32", not(feature = "bigint_ops")))]
 compile_error!("feature `bigint_ops` must be activated for RISC-V target");
 
-#[cfg(any(all(target_arch = "riscv32", feature = "bigint_ops"), test))]
-pub fn init() {
-    unsafe {
-        MODULUS.as_mut_ptr().write(MODULUS_CONSTANT);
-        REDUCTION_CONST.as_mut_ptr().write(MONT_REDUCTION_CONSTANT);
-    }
-}
-
 pub type Fq = Fp256<MontBackend<FqConfig, 4>>;
 use crate::ark_ff_delegation::{BigInt, BigIntMacro, Fp, Fp256, MontBackend, MontConfig};
 use crate::bigint_delegation::{u256, DelegatedModParams, DelegatedMontParams};
 use ark_ff::ark_ff_macros::unroll_for_loops;
 use ark_ff::{AdditiveGroup, Zero};
-use core::mem::MaybeUninit;
 
 type B = BigInt<4>;
 type F = Fp<MontBackend<FqConfig, 4usize>, 4usize>;
 
-// we also need few empty representations
-// static mut MINUS_ONE_REPR: MaybeUninit<[u32; 8]> = MaybeUninit::uninit();
-static mut MODULUS: MaybeUninit<B> = MaybeUninit::uninit();
-static mut REDUCTION_CONST: MaybeUninit<B> = MaybeUninit::uninit();
-
-const MODULUS_CONSTANT: B =
+static MODULUS_CONSTANT: B =
     BigIntMacro!("21888242871839275222246405745257275088696311157297823662689037894645226208583");
 // it's - MODULUS^-1 mod 2^256
-const MONT_REDUCTION_CONSTANT: B =
+static MONT_REDUCTION_CONSTANT: B =
     BigIntMacro!("111032442853175714102588374283752698368366046808579839647964533820976443843465");
 
 // // a^-1 = a ^ (p - 2)
@@ -42,14 +28,16 @@ const MONT_REDUCTION_CONSTANT: B =
 struct FqParams;
 
 impl DelegatedModParams<4> for FqParams {
-    unsafe fn modulus() -> &'static BigInt<4> {
-        unsafe { MODULUS.assume_init_ref() }
+    const MODULUS_BITSIZE: usize = 254;
+
+    fn modulus() -> &'static BigInt<4> {
+        &MODULUS_CONSTANT
     }
 }
 
 impl DelegatedMontParams<4> for FqParams {
-    unsafe fn reduction_const() -> &'static BigInt<4> {
-        unsafe { REDUCTION_CONST.assume_init_ref() }
+    fn reduction_const() -> &'static BigInt<4> {
+        &MONT_REDUCTION_CONSTANT
     }
 }
 
@@ -176,7 +164,7 @@ fn __gcd_inverse(a: &F) -> Option<F> {
     let mut c = Fp::zero();
     let modulus = F::MODULUS;
 
-    while !u256::is_one(&mut u) && !u256::is_one(&mut v) {
+    while !u256::is_one(&u) && !u256::is_one(&v) {
         while u.is_even() {
             u.div2();
 
@@ -215,7 +203,7 @@ fn __gcd_inverse(a: &F) -> Option<F> {
         }
     }
 
-    if u256::is_one(&mut u) {
+    if u256::is_one(&u) {
         Some(b)
     } else {
         Some(c)
@@ -227,17 +215,9 @@ mod test {
     use super::Fq;
     use ark_ff::{Field, One, UniformRand, Zero};
 
-    fn init() {
-        super::init();
-        crate::bigint_delegation::init();
-    }
-
-    #[ignore = "requires single threaded runner"]
     #[test]
     fn test_mul_properties() {
         const ITERATIONS: usize = 1000;
-        init();
-
         use ark_std::test_rng;
         let mut rng = test_rng();
         let zero = Fq::zero();
@@ -306,14 +286,12 @@ mod test {
         }
     }
 
-    #[ignore = "requires single threaded runner"]
     #[test]
     fn test_mul_correctness() {
         use std::str::FromStr;
 
         type RefFq = ark_bn254::Fq;
 
-        init();
         let a = Fq::from_str("-1").unwrap();
         let ref_a = RefFq::from_str("-1").unwrap();
 
@@ -330,10 +308,8 @@ mod test {
     use ark_ff::{CyclotomicMultSubgroup, PrimeField};
     use ark_std::test_rng;
 
-    #[ignore = "requires single threaded runner"]
     #[test]
     fn test_bilinearity() {
-        init();
         for _ in 0..ITERATIONS {
             let mut rng = test_rng();
             let a: <Bn254 as Pairing>::G1 = UniformRand::rand(&mut rng);
@@ -361,10 +337,8 @@ mod test {
         }
     }
 
-    #[ignore = "requires single threaded runner"]
     #[test]
     fn test_multi_pairing() {
-        init();
         for _ in 0..ITERATIONS {
             let rng = &mut test_rng();
 
@@ -378,10 +352,8 @@ mod test {
         }
     }
 
-    #[ignore = "requires single threaded runner"]
     #[test]
     fn test_final_exp() {
-        init();
         for _ in 0..ITERATIONS {
             let rng = &mut test_rng();
             let fp_ext = <Bn254 as Pairing>::TargetField::rand(rng);

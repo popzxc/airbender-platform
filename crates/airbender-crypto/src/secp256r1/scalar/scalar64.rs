@@ -1,5 +1,5 @@
 // based on https://github.com/RustCrypto/elliptic-curves/blob/master/p256/src/arithmetic/scalar/scalar64.rs
-use crate::secp256r1::{u64_arithmatic::*, Secp256r1Err};
+use crate::secp256r1::{u64_arithmetic::*, Secp256r1Err};
 
 use super::{MODULUS, MU};
 
@@ -39,7 +39,17 @@ impl Scalar {
 
     pub(crate) fn from_be_bytes(bytes: &[u8; 32]) -> Result<Self, Secp256r1Err> {
         let val = Self::from_be_bytes_unchecked(bytes);
-        Ok(val)
+        if val.overflow() {
+            Err(Secp256r1Err::InvalidSignature)
+        } else {
+            Ok(val)
+        }
+    }
+
+    fn overflow(&self) -> bool {
+        let (_, of) = overflowing_sub(&self.0, &MODULUS);
+        // temp.0 >= MODULUS
+        !of
     }
 
     #[cfg(test)]

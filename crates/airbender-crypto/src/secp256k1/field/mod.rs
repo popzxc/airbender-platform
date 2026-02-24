@@ -2,20 +2,22 @@ use crate::k256::FieldBytes;
 use cfg_if::cfg_if;
 use core::ops::{AddAssign, MulAssign, SubAssign};
 
-#[cfg(any(target_arch = "riscv32", test))]
+#[cfg(any(target_arch = "riscv32", test, feature = "proving"))]
 mod field_10x26;
-#[cfg(any(target_arch = "riscv32", test))]
+#[cfg(any(target_arch = "riscv32", test, feature = "proving"))]
 mod mod_inv32;
 
-#[cfg(any(target_pointer_width = "64", test))]
+#[cfg(any(target_pointer_width = "64", test, feature = "proving"))]
 mod field_5x52;
-#[cfg(any(target_pointer_width = "64", test))]
+#[cfg(any(target_pointer_width = "64", test, feature = "proving"))]
 mod mod_inv64;
 
-#[cfg(any(all(target_arch = "riscv32", feature = "bigint_ops"), test))]
+#[cfg(any(
+    all(target_arch = "riscv32", feature = "bigint_ops"),
+    test,
+    feature = "proving"
+))]
 mod field_8x32;
-#[cfg(any(all(target_arch = "riscv32", feature = "bigint_ops"), test))]
-pub use field_8x32::init;
 
 #[cfg(all(debug_assertions, not(feature = "bigint_ops")))]
 mod field_impl;
@@ -117,7 +119,7 @@ impl FieldElementConst {
 pub struct FieldElement(pub(crate) FieldElementImpl);
 
 impl FieldElement {
-    pub const ZERO: Self = Self(FieldElementImpl::ZERO);
+    pub(crate) const ZERO: Self = Self(FieldElementImpl::ZERO);
     pub(crate) const ONE: Self = Self(FieldElementImpl::ONE);
     // 0x7ae96a2b657c07106e64479eac3434e99cf0497512f58995c1396c28719501ee
     pub(crate) const BETA: Self = Self(FieldElementImpl::BETA);
@@ -127,7 +129,7 @@ impl FieldElement {
         Self(FieldElementImpl::from_bytes_unchecked(bytes))
     }
 
-    pub fn from_bytes(bytes: &[u8; 32]) -> Option<Self> {
+    pub(crate) fn from_bytes(bytes: &[u8; 32]) -> Option<Self> {
         FieldElementImpl::from_bytes(bytes).map(Self)
     }
 
@@ -139,11 +141,11 @@ impl FieldElement {
         self.0.mul_int_in_place(rhs);
     }
 
-    pub fn square_in_place(&mut self) {
+    pub(crate) fn square_in_place(&mut self) {
         self.0.square_in_place();
     }
 
-    pub fn add_in_place(&mut self, rhs: &Self) {
+    pub(crate) fn add_in_place(&mut self, rhs: &Self) {
         self.0.add_in_place(&rhs.0);
     }
 
@@ -151,7 +153,7 @@ impl FieldElement {
         self.0.double_in_place();
     }
 
-    pub fn sub_in_place(&mut self, rhs: &Self) {
+    pub(crate) fn sub_in_place(&mut self, rhs: &Self) {
         self.0.sub_in_place(&rhs.0);
     }
 
@@ -159,7 +161,7 @@ impl FieldElement {
         self.0.add_int_in_place(rhs);
     }
 
-    pub fn invert_in_place(&mut self) {
+    pub(crate) fn invert_in_place(&mut self) {
         self.0.invert_in_place()
     }
 
@@ -212,7 +214,7 @@ impl FieldElement {
         self.pow2k_in_place(2);
     }
 
-    pub fn sqrt_in_place(&mut self) -> bool {
+    pub(crate) fn sqrt_in_place(&mut self) -> bool {
         let original = *self;
         self.sqrt_in_place_unchecked();
 
@@ -223,7 +225,7 @@ impl FieldElement {
 
         is_root.normalizes_to_zero()
     }
-    pub fn negate_in_place(&mut self, magnitude: u32) {
+    pub(crate) fn negate_in_place(&mut self, magnitude: u32) {
         self.0.negate_in_place(magnitude);
     }
 
@@ -231,11 +233,11 @@ impl FieldElement {
         self.0.normalize_in_place();
     }
 
-    pub fn is_odd(&self) -> bool {
+    pub(crate) fn is_odd(&self) -> bool {
         self.0.is_odd()
     }
 
-    pub fn normalizes_to_zero(&self) -> bool {
+    pub(crate) fn normalizes_to_zero(&self) -> bool {
         self.0.normalizes_to_zero()
     }
 
@@ -246,7 +248,7 @@ impl FieldElement {
         }
     }
 
-    pub fn to_bytes(mut self) -> FieldBytes {
+    pub(crate) fn to_bytes(mut self) -> FieldBytes {
         self.normalize_in_place();
         self.0.to_bytes()
     }
@@ -351,9 +353,6 @@ mod tests {
 
     #[test]
     fn storage_round_trip() {
-        #[cfg(feature = "bigint_ops")]
-        super::field_8x32::init();
-
         proptest!(|(x: FieldElement)| {
              prop_assert_eq!(x.to_storage().to_field_elem(), x);
         })
@@ -361,9 +360,6 @@ mod tests {
 
     #[test]
     fn to_bytes_round_trip() {
-        #[cfg(feature = "bigint_ops")]
-        super::field_8x32::init();
-
         proptest!(|(x: FieldElement)| {
             let bytes: [u8; 32] = x.to_bytes().as_slice().try_into().unwrap();
             prop_assert_eq!(
@@ -375,9 +371,6 @@ mod tests {
 
     #[test]
     fn from_bytes_round_trip() {
-        #[cfg(feature = "bigint_ops")]
-        super::field_8x32::init();
-
         proptest!(|(bytes: [u8; 32])| {
             prop_assert_eq!(
                 &*FieldElement::from_bytes(&bytes).unwrap().to_bytes(),
@@ -388,9 +381,6 @@ mod tests {
 
     #[test]
     fn test_mul() {
-        #[cfg(feature = "bigint_ops")]
-        super::field_8x32::init();
-
         proptest!(|(x: FieldElement, y: FieldElement, z: FieldElement)| {
             let mut a = x;
             let mut b = y;
@@ -440,9 +430,6 @@ mod tests {
 
     #[test]
     fn test_invert() {
-        #[cfg(feature = "bigint_ops")]
-        super::field_8x32::init();
-
         proptest!(|(x: FieldElement)| {
             let mut a = x;
             a.invert_in_place();
@@ -474,9 +461,6 @@ mod tests {
 
     #[test]
     fn test_add() {
-        #[cfg(feature = "bigint_ops")]
-        super::field_8x32::init();
-
         proptest!(|(x: FieldElement, y: FieldElement, z: FieldElement)| {
             let mut a = x;
             let mut b = y;
@@ -518,9 +502,6 @@ mod tests {
 
     #[test]
     fn test_square() {
-        #[cfg(feature = "bigint_ops")]
-        super::field_8x32::init();
-
         proptest!(|(x: FieldElement)| {
             let mut x_neg = x;
             x_neg.negate_in_place(1);

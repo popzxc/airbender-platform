@@ -294,6 +294,7 @@ impl<const N: usize> BigInt<N> {
 impl<const N: usize> BigInteger for BigInt<N> {
     const NUM_LIMBS: usize = N;
 
+    #[track_caller]
     #[inline(always)]
     fn add_with_carry(&mut self, other: &Self) -> bool {
         if N == 4 {
@@ -507,7 +508,7 @@ impl<const N: usize> PartialOrd for BigInt<N> {
 
 impl<const N: usize> Distribution<BigInt<N>> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> BigInt<N> {
-        BigInt([(); N].map(|_| rng.r#gen()))
+        BigInt([(); N].map(|_| rng.gen()))
     }
 }
 

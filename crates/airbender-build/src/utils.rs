@@ -93,16 +93,51 @@ pub(crate) fn find_package<'a>(
         .ok_or(BuildError::MissingField("package.name"))
 }
 
-/// Picks the primary binary target name for build commands.
+/// Resolves the binary target name used for build commands.
 ///
-/// If no explicit binary target exists, this falls back to package name.
-pub(crate) fn select_bin_name(package: &Package) -> String {
-    package
+/// This enforces explicit selection when a package defines multiple binary targets.
+pub(crate) fn resolve_bin_name(package: &Package, explicit_bin: Option<&str>) -> Result<String> {
+    let bin_names: Vec<&str> = package
         .targets
         .iter()
-        .find(|target| target.kind.iter().any(|kind| kind == "bin"))
-        .map(|target| target.name.clone())
-        .unwrap_or_else(|| package.name.clone())
+        .filter(|target| target.kind.iter().any(|kind| kind == "bin"))
+        .map(|target| target.name.as_str())
+        .collect();
+
+    resolve_bin_name_from_candidates(&package.name, &bin_names, explicit_bin)
+}
+
+fn resolve_bin_name_from_candidates(
+    package_name: &str,
+    bin_names: &[&str],
+    explicit_bin: Option<&str>,
+) -> Result<String> {
+    if let Some(explicit_bin) = explicit_bin {
+        if bin_names.iter().any(|bin_name| *bin_name == explicit_bin) {
+            return Ok(explicit_bin.to_string());
+        }
+
+        let available = if bin_names.is_empty() {
+            "<none>".to_string()
+        } else {
+            bin_names.join(", ")
+        };
+
+        return Err(BuildError::InvalidConfig(format!(
+            "binary target `{explicit_bin}` not found in package `{package_name}`; available binaries: {available}"
+        )));
+    }
+
+    match bin_names {
+        [single] => Ok((*single).to_string()),
+        [] => Err(BuildError::InvalidConfig(format!(
+            "package `{package_name}` has no binary targets"
+        ))),
+        _ => Err(BuildError::InvalidConfig(format!(
+            "package `{package_name}` has multiple binary targets ({}); pass `--bin <name>`",
+            bin_names.join(", ")
+        ))),
+    }
 }
 
 /// Computes a lowercase hex SHA-256 digest for a file.
@@ -208,6 +243,55 @@ mod tests {
         assert!(metadata.is_dirty);
 
         std::fs::remove_dir_all(&dir).expect("remove temp directory");
+    }
+
+    #[test]
+    fn resolve_bin_name_uses_single_candidate_without_explicit_override() {
+        let resolved = resolve_bin_name_from_candidates("guest", &["guest"], None)
+            .expect("single binary should resolve");
+
+        assert_eq!(resolved, "guest");
+    }
+
+    #[test]
+    fn resolve_bin_name_rejects_ambiguous_multi_bin_without_explicit_override() {
+        let err = resolve_bin_name_from_candidates("guest", &["alpha", "beta"], None)
+            .expect_err("multi-bin package should require --bin");
+
+        assert_eq!(
+            err.to_string(),
+            "invalid config: package `guest` has multiple binary targets (alpha, beta); pass `--bin <name>`"
+        );
+    }
+
+    #[test]
+    fn resolve_bin_name_validates_explicit_bin_against_candidates() {
+        let err = resolve_bin_name_from_candidates("guest", &["alpha", "beta"], Some("gamma"))
+            .expect_err("unknown explicit bin must fail fast");
+
+        assert_eq!(
+            err.to_string(),
+            "invalid config: binary target `gamma` not found in package `guest`; available binaries: alpha, beta"
+        );
+    }
+
+    #[test]
+    fn resolve_bin_name_accepts_explicit_candidate() {
+        let resolved = resolve_bin_name_from_candidates("guest", &["alpha", "beta"], Some("beta"))
+            .expect("known explicit bin should resolve");
+
+        assert_eq!(resolved, "beta");
+    }
+
+    #[test]
+    fn resolve_bin_name_rejects_packages_without_binaries() {
+        let err = resolve_bin_name_from_candidates("guest", &[], None)
+            .expect_err("package without binaries should fail");
+
+        assert_eq!(
+            err.to_string(),
+            "invalid config: package `guest` has no binary targets"
+        );
     }
 
     fn unique_temp_dir_path(label: &str) -> std::path::PathBuf {

@@ -19,7 +19,7 @@ impl Affine {
     };
 
     pub(crate) fn is_infinity(&self) -> bool {
-        self.infinity || (self.x.is_zero() || self.y.is_zero())
+        self.infinity || (self.x.is_zero() && self.y.is_zero())
     }
 
     pub(crate) fn from_be_bytes(x: &[u8; 32], y: &[u8; 32]) -> Result<Self, Secp256r1Err> {
@@ -60,6 +60,10 @@ impl Affine {
     }
 
     pub(crate) fn to_jacobian(self) -> Jacobian {
+        if self.is_infinity() {
+            return Jacobian::INFINITY;
+        }
+
         Jacobian {
             x: self.x,
             y: self.y,
@@ -80,5 +84,25 @@ impl Neg for Affine {
 impl PartialEq for Affine {
     fn eq(&self, other: &Self) -> bool {
         self.x == other.x && self.y == other.y && self.infinity == other.infinity
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Affine;
+    use crate::secp256r1::points::affine::FieldElement;
+
+    #[test]
+    fn test_infinity_check() {
+        let inf = Affine::INFINITY;
+        assert!(inf.is_infinity());
+
+        // Regression: check that (1,0) isn't infinity
+        let oz = Affine {
+            x: FieldElement::ONE,
+            y: FieldElement::ZERO,
+            infinity: false,
+        };
+        assert!(!oz.is_infinity());
     }
 }

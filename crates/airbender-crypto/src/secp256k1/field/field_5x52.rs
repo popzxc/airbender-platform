@@ -12,6 +12,7 @@ impl core::fmt::Debug for FieldElement5x52 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str("0x")?;
         let bytes = self.to_bytes();
+        #[allow(deprecated)]
         for b in bytes.as_slice().iter() {
             f.write_fmt(format_args!("{b:02x}"))?;
         }
@@ -86,7 +87,7 @@ impl FieldElement5x52 {
     #[inline(always)]
     #[cfg(debug_assertions)]
     pub(super) const fn max_magnitude() -> u32 {
-        2047u32
+        16u32
     }
 
     #[inline(always)]
@@ -557,10 +558,10 @@ impl proptest::arbitrary::Arbitrary for FieldElement5x52 {
     fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
         use proptest::prelude::{any, Strategy};
 
-        any::<[u64; 5]>().prop_map(|limbs| Self(limbs).normalize())
+        any::<[u8; 32]>().prop_map(|bytes| Self::from_bytes_unchecked(&bytes).normalize())
     }
 
-    type Strategy = proptest::arbitrary::Mapped<[u64; 5], Self>;
+    type Strategy = proptest::arbitrary::Mapped<[u8; 32], Self>;
 }
 
 #[cfg(test)]

@@ -42,9 +42,7 @@ impl AffineConst {
         #[cfg(all(debug_assertions, not(feature = "bigint_ops")))]
         {
             debug_assert!(self.x.0.magnitude <= Self::X_MAGNITUDE_MAX);
-            debug_assert!(self.x.0.magnitude <= 32);
             debug_assert!(self.y.0.magnitude <= Self::Y_MAGNITUDE_MAX);
-            debug_assert!(self.y.0.magnitude <= 32);
         }
     }
 
@@ -63,6 +61,9 @@ impl AffineConst {
     }
 
     pub(crate) const fn to_jacobian(self) -> JacobianConst {
+        if self.is_infinity() {
+            return JacobianConst::INFINITY;
+        }
         JacobianConst {
             x: self.x,
             y: self.y,
@@ -123,9 +124,7 @@ impl Affine {
         #[cfg(all(debug_assertions, not(feature = "bigint_ops")))]
         {
             debug_assert!(self.x.0.magnitude <= Self::X_MAGNITUDE_MAX);
-            debug_assert!(self.x.0.magnitude <= 32);
             debug_assert!(self.y.0.magnitude <= Self::Y_MAGNITUDE_MAX);
-            debug_assert!(self.y.0.magnitude <= 32);
         }
     }
 
@@ -133,21 +132,12 @@ impl Affine {
         self.infinity || (self.x.normalizes_to_zero() && self.y.normalizes_to_zero())
     }
 
-    /// Creates an affine point from raw coordinates without validating curve membership.
-    ///
-    /// # Safety
-    /// `x` and `y` must represent a valid secp256k1 affine point.
-    pub unsafe fn from_xy_unchecked(x: FieldElement, y: FieldElement) -> Self {
-        Self {
-            x,
-            y,
-            infinity: false,
-        }
-    }
-
     pub(crate) fn decompress(x_bytes: &FieldBytes, y_is_odd: bool) -> Option<Self> {
-        debug_assert!(x_bytes.as_slice().len() == 32);
+        #[allow(deprecated)]
+        let len = x_bytes.as_slice().len();
+        debug_assert!(len == 32);
 
+        #[allow(deprecated)]
         x_bytes.as_slice().try_into().ok().and_then(|x| {
             let x = FieldElement::from_bytes(x)?;
             let mut ret = Affine::DEFAULT;
@@ -218,7 +208,10 @@ impl Affine {
         self.infinity = a.infinity;
     }
 
-    pub const fn to_jacobian(self) -> Jacobian {
+    pub(crate) fn to_jacobian(self) -> Jacobian {
+        if self.is_infinity() {
+            return Jacobian::INFINITY;
+        }
         Jacobian {
             x: self.x,
             y: self.y,
@@ -281,9 +274,6 @@ mod tests {
 
     #[test]
     fn test_set_xo() {
-        #[cfg(feature = "bigint_ops")]
-        crate::secp256k1::init();
-
         let g = Affine::GENERATOR;
         let x = g.x;
         let y_is_odd = false;
@@ -294,9 +284,6 @@ mod tests {
 
     #[test]
     fn jacobian_round_trip() {
-        #[cfg(feature = "bigint_ops")]
-        crate::secp256k1::init();
-
         proptest!(|(x: Affine)| {
             prop_assert_eq!(x.to_jacobian().to_affine(), x);
         });

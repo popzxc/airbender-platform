@@ -3,7 +3,7 @@
 use crate::constants::DEFAULT_APP_NAME;
 use crate::errors::Result;
 use crate::utils::{
-    find_package, load_metadata, resolve_git_metadata, run_command, select_bin_name,
+    find_package, load_metadata, resolve_bin_name, resolve_git_metadata, run_command,
     sha256_file_hex, validate_app_name,
 };
 use crate::{ArtifactEntry, BuildMetadata, Manifest, Profile, MANIFEST_VERSION_V1};
@@ -184,10 +184,7 @@ impl BuildConfig {
         let manifest_path = project_dir.join("Cargo.toml");
         let metadata = load_metadata(&manifest_path)?;
         let package = find_package(&metadata, &manifest_path)?;
-        let bin_name = self
-            .bin_name
-            .clone()
-            .unwrap_or_else(|| select_bin_name(package));
+        let bin_name = resolve_bin_name(package, self.bin_name.as_deref())?;
 
         Ok(ManifestNames {
             package: package.name.clone(),

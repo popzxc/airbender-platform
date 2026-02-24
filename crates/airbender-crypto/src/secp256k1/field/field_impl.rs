@@ -3,7 +3,7 @@ use crate::k256::FieldBytes;
 use cfg_if::cfg_if;
 
 cfg_if! {
-    if #[cfg(target_arch = "riscv32")] {
+    if #[cfg(any(target_arch = "riscv32", feature = "proving"))] {
         use super::field_10x26::{FieldElement10x26 as FieldElementInner, FieldStorage10x26 as FieldStorageInner};
     } else if #[cfg(target_pointer_width = "64")] {
         use super::field_5x52::{FieldElement5x52 as FieldElementInner, FieldStorage5x52 as FieldStorageInner};
@@ -76,7 +76,7 @@ impl FieldElementImpl {
     }
 
     pub(super) fn mul_int_in_place(&mut self, rhs: u32) {
-        self.magnitude += rhs;
+        self.magnitude *= rhs;
         debug_assert!(self.magnitude <= Self::max_magnitude());
 
         self.value.mul_int_in_place(rhs);
@@ -127,6 +127,7 @@ impl FieldElementImpl {
 
     pub(super) fn normalize_in_place(&mut self) {
         if !self.normalized || self.magnitude > 1 {
+            debug_assert!(self.magnitude <= Self::max_magnitude());
             self.value.normalize_in_place();
             self.magnitude = 1;
             self.normalized = true;
@@ -134,6 +135,7 @@ impl FieldElementImpl {
     }
 
     pub(super) const fn normalizes_to_zero(&self) -> bool {
+        debug_assert!(self.magnitude <= Self::max_magnitude());
         self.value.normalizes_to_zero()
     }
 
@@ -156,7 +158,7 @@ impl FieldElementImpl {
     }
 
     pub(super) const fn mul_int(&self, rhs: u32) -> Self {
-        let new_magnitude = self.magnitude + rhs;
+        let new_magnitude = self.magnitude * rhs;
         debug_assert!(new_magnitude <= Self::max_magnitude());
 
         let value = self.value.mul_int(rhs);
@@ -189,6 +191,7 @@ impl FieldElementImpl {
         if self.normalized && self.magnitude <= 1 {
             self
         } else {
+            debug_assert!(self.magnitude <= Self::max_magnitude());
             Self::new_normalized(self.value.normalize())
         }
     }
@@ -234,5 +237,57 @@ impl proptest::arbitrary::Arbitrary for FieldElementImpl {
 impl PartialEq for FieldElementImpl {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::secp256k1::field::field_impl::FieldElementImpl;
+
+    #[test]
+    fn test_magnitude_regression_mul_int() {
+        // Regression test for the magnitude calculation bug fix
+
+        // Test mul_int_in_place with correct magnitude tracking
+        let mut fe = FieldElementImpl::ONE;
+        fe.add_in_place(&FieldElementImpl::ONE);
+
+        let initial_magnitude = fe.magnitude;
+        assert_eq!(initial_magnitude, 2);
+
+        let multiplier = 3u32;
+        fe.mul_int_in_place(multiplier);
+
+        assert_eq!(fe.magnitude, initial_magnitude * multiplier);
+        assert_eq!(fe.magnitude, 6);
+
+        // Test const mul_int with correct magnitude tracking
+        let mut fe2 = FieldElementImpl::ONE;
+        for _ in 0..4 {
+            fe2.add_in_place(&FieldElementImpl::ONE);
+        }
+        assert_eq!(fe2.magnitude, 5);
+
+        fe2.normalize_in_place();
+        assert_eq!(fe2.magnitude, 1);
+
+        let multiplier2 = 4u32;
+        let result = fe2.mul_int(multiplier2);
+
+        assert_eq!(result.magnitude, fe2.magnitude * multiplier2);
+        assert_eq!(result.magnitude, 4);
+
+        // Test edge cases
+        let mut fe3 = FieldElementImpl::ONE;
+        fe3.add_in_place(&FieldElementImpl::ONE); // magnitude = 2
+
+        let original_magnitude = fe3.magnitude;
+        fe3.mul_int_in_place(1); // multiply by 1
+        assert_eq!(fe3.magnitude, original_magnitude); // should preserve magnitude
+
+        let mut fe4 = FieldElementImpl::ONE;
+        fe4.add_in_place(&FieldElementImpl::ONE); // magnitude = 2
+        fe4.mul_int_in_place(0); // multiply by 0
+        assert_eq!(fe4.magnitude, 0); // magnitude should be 0
     }
 }
