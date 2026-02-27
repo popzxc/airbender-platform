@@ -1,4 +1,4 @@
-use super::{resolve_cycles, ExecutionResult, Runner};
+use super::{resolve_cycles, ExecutionResult, FlamegraphConfig, Runner};
 use crate::error::{HostError, Result};
 use crate::receipt::Receipt;
 use risc_v_simulator::abstractions::non_determinism::QuasiUARTSource;
@@ -9,7 +9,10 @@ use riscv_transpiler::ir::{preprocess_bytecode, FullUnsignedMachineDecoderConfig
 #[cfg(target_arch = "x86_64")]
 use riscv_transpiler::jit::JittedCode;
 use riscv_transpiler::jit::RAM_SIZE;
-use riscv_transpiler::vm::{DelegationsCounters, RamWithRomRegion, SimpleTape, State, VM};
+use riscv_transpiler::vm::{
+    DelegationsCounters, FlamegraphConfig as VmFlamegraphConfig, RamWithRomRegion, SimpleTape,
+    State, VmFlamegraphProfiler, VM,
+};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -18,6 +21,7 @@ pub struct TranspilerRunnerBuilder {
     app_bin_path: PathBuf,
     cycles: Option<usize>,
     text_path: Option<PathBuf>,
+    flamegraph: Option<FlamegraphConfig>,
     use_jit: bool,
 }
 
@@ -27,6 +31,7 @@ impl TranspilerRunnerBuilder {
             app_bin_path: app_bin_path.as_ref().to_path_buf(),
             cycles: None,
             text_path: None,
+            flamegraph: None,
             use_jit: false,
         }
     }
@@ -38,6 +43,11 @@ impl TranspilerRunnerBuilder {
 
     pub fn with_text_path(mut self, text_path: impl AsRef<Path>) -> Self {
         self.text_path = Some(text_path.as_ref().to_path_buf());
+        self
+    }
+
+    pub fn with_flamegraph(mut self, flamegraph: FlamegraphConfig) -> Self {
+        self.flamegraph = Some(flamegraph);
         self
     }
 
@@ -65,6 +75,7 @@ impl TranspilerRunnerBuilder {
             app_bin_path,
             app_text_path,
             cycles,
+            flamegraph: self.flamegraph,
             use_jit: self.use_jit,
         })
     }
@@ -75,11 +86,16 @@ pub struct TranspilerRunner {
     app_bin_path: PathBuf,
     app_text_path: PathBuf,
     cycles: usize,
+    flamegraph: Option<FlamegraphConfig>,
     use_jit: bool,
 }
 
 impl Runner for TranspilerRunner {
     fn run(&self, input_words: &[u32]) -> Result<ExecutionResult> {
+        if self.flamegraph.is_some() {
+            return self.run_without_jit_with_flamegraph(input_words);
+        }
+
         if self.use_jit {
             return self.run_with_jit(input_words);
         }
@@ -129,6 +145,34 @@ impl TranspilerRunner {
     }
 
     fn run_without_jit(&self, input_words: &[u32]) -> Result<ExecutionResult> {
+        self.run_without_jit_internal(input_words, None)
+    }
+
+    fn run_without_jit_with_flamegraph(&self, input_words: &[u32]) -> Result<ExecutionResult> {
+        let flamegraph = self
+            .flamegraph
+            .as_ref()
+            .ok_or_else(|| HostError::Transpiler("flamegraph options are missing".to_string()))?;
+
+        let symbols_path = flamegraph
+            .elf_path
+            .clone()
+            .unwrap_or_else(|| derive_elf_path(&self.app_bin_path));
+        let mut profiler_config = VmFlamegraphConfig::new(symbols_path, flamegraph.output.clone());
+        profiler_config.frequency_recip = flamegraph.sampling_rate;
+        profiler_config.reverse_graph = flamegraph.inverse;
+        let mut profiler = VmFlamegraphProfiler::new(profiler_config).map_err(|err| {
+            HostError::Transpiler(format!("failed to initialize flamegraph profiler: {err}"))
+        })?;
+
+        self.run_without_jit_internal(input_words, Some(&mut profiler))
+    }
+
+    fn run_without_jit_internal(
+        &self,
+        input_words: &[u32],
+        profiler: Option<&mut VmFlamegraphProfiler>,
+    ) -> Result<ExecutionResult> {
         let bin_words = read_u32_words(&self.app_bin_path)?;
         let text_words = read_u32_words(&self.app_text_path)?;
         let instructions = preprocess_bytecode::<FullUnsignedMachineDecoderConfig>(&text_words);
@@ -138,14 +182,31 @@ impl TranspilerRunner {
         let mut state = State::initial_with_counters(DelegationsCounters::default());
         let mut non_determinism_source = QuasiUARTSource::new_with_reads(input_words.to_vec());
 
-        let reached_end = VM::<DelegationsCounters>::run_basic_unrolled::<_, _, _>(
-            &mut state,
-            &mut ram,
-            &mut (),
-            &instruction_tape,
-            self.cycles,
-            &mut non_determinism_source,
-        );
+        let reached_end = match profiler {
+            Some(profiler) => {
+                VM::<DelegationsCounters>::run_basic_unrolled_with_flamegraph::<_, _, _>(
+                    &mut state,
+                    &mut ram,
+                    &mut (),
+                    &instruction_tape,
+                    self.cycles,
+                    &mut non_determinism_source,
+                    profiler,
+                )
+                .map_err(|err| {
+                    HostError::Transpiler(format!("failed to generate flamegraph: {err}"))
+                })?
+            }
+            None => VM::<DelegationsCounters>::run_basic_unrolled::<_, _, _>(
+                &mut state,
+                &mut ram,
+                &mut (),
+                &instruction_tape,
+                self.cycles,
+                &mut non_determinism_source,
+            ),
+        };
+
         let cycles_executed = ((state.timestamp - INITIAL_TIMESTAMP) / TIMESTAMP_STEP) as usize;
         let registers = state.registers.map(|register| register.value);
 
@@ -193,6 +254,12 @@ fn derive_text_path(bin_path: &Path) -> PathBuf {
     let mut text_path = bin_path.to_path_buf();
     text_path.set_extension("text");
     text_path
+}
+
+fn derive_elf_path(bin_path: &Path) -> PathBuf {
+    let mut elf_path = bin_path.to_path_buf();
+    elf_path.set_extension("elf");
+    elf_path
 }
 
 fn read_u32_words(path: &Path) -> Result<Vec<u32>> {

@@ -1,4 +1,4 @@
-use super::{resolve_cycles, ExecutionResult, Runner};
+use super::{resolve_cycles, ExecutionResult, FlamegraphConfig, Runner};
 use crate::error::{HostError, Result};
 use crate::receipt::Receipt;
 use risc_v_simulator::abstractions::non_determinism::QuasiUARTSource;
@@ -9,15 +9,6 @@ use risc_v_simulator::sim::{
     BinarySource, DiagnosticsConfig, ProfilerConfig, Simulator, SimulatorConfig,
 };
 use std::path::{Path, PathBuf};
-
-/// Flamegraph collection options for simulator execution.
-#[derive(Clone, Debug)]
-pub struct FlamegraphConfig {
-    pub output: PathBuf,
-    pub sampling_rate: usize,
-    pub inverse: bool,
-    pub elf_path: Option<PathBuf>,
-}
 
 /// Builder for creating a configured simulator runner.
 pub struct SimulatorRunnerBuilder {

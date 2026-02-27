@@ -122,7 +122,7 @@ Options:
 
 ## `cargo airbender flamegraph`
 
-Runs simulator with profiling and writes flamegraph output.
+Runs transpiler execution with profiling and writes flamegraph output.
 
 ```sh
 cargo airbender flamegraph ./dist/app/app.bin --input ./input.hex --output flamegraph.svg

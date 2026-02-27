@@ -81,7 +81,6 @@ ark-test-curves = { version = "0.5", default-features = false }
 rand_core = { version = "0.6.4", default-features = false }
 
 # Airbender dependencies
-
 riscv_common = { git = "https://github.com/matter-labs/zksync-airbender", branch = "dev" }
 risc_v_simulator = { git = "https://github.com/matter-labs/zksync-airbender", branch = "dev" }
 execution_utils = { git = "https://github.com/matter-labs/zksync-airbender", branch = "dev" }

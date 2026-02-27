@@ -33,7 +33,7 @@ pub enum Commands {
     New(NewArgs),
     /// Run app.bin with the simulator.
     Run(RunArgs),
-    /// Run app.bin with simulator profiling and emit flamegraph SVG.
+    /// Run app.bin with transpiler profiling and emit flamegraph SVG.
     Flamegraph(FlamegraphArgs),
     /// Run app.bin via the transpiler.
     RunTranspiler(RunTranspilerArgs),

@@ -20,7 +20,7 @@ serde = { workspace = true, features = ["derive"] }
 risc_v_simulator = { workspace = true }
 execution_utils = { workspace = true }
 gpu_prover = { workspace = true, optional = true }
-riscv_transpiler = { workspace = true, features = ["jit"] }
+riscv_transpiler = { workspace = true, features = ["jit", "flamegraph"] }
 sha3 = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }

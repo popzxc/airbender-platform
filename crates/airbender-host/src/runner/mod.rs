@@ -1,11 +1,21 @@
 use crate::error::{HostError, Result};
 use crate::receipt::Receipt;
+use std::path::PathBuf;
 
 mod simulator_runner;
 mod transpiler_runner;
 
-pub use self::simulator_runner::{FlamegraphConfig, SimulatorRunner, SimulatorRunnerBuilder};
+pub use self::simulator_runner::{SimulatorRunner, SimulatorRunnerBuilder};
 pub use self::transpiler_runner::{TranspilerRunner, TranspilerRunnerBuilder};
+
+/// Flamegraph collection options for execution runners.
+#[derive(Clone, Debug)]
+pub struct FlamegraphConfig {
+    pub output: PathBuf,
+    pub sampling_rate: usize,
+    pub inverse: bool,
+    pub elf_path: Option<PathBuf>,
+}
 
 pub const DEFAULT_CYCLES: usize = 90_000_000_000;
 

@@ -46,7 +46,7 @@ pub fn flamegraph(args: FlamegraphArgs) -> Result<()> {
         elf_path: args.elf_path,
     };
     let mut builder =
-        airbender_host::SimulatorRunnerBuilder::new(&args.app_bin).with_flamegraph(flamegraph);
+        airbender_host::TranspilerRunnerBuilder::new(&args.app_bin).with_flamegraph(flamegraph);
     if let Some(cycle_limit) = args.cycles {
         builder = builder.with_cycles(cycle_limit);
     }
@@ -54,7 +54,7 @@ pub fn flamegraph(args: FlamegraphArgs) -> Result<()> {
     let runner = builder.build().map_err(|err| {
         CliError::with_source(
             format!(
-                "failed to initialize simulator runner for `{}`",
+                "failed to initialize transpiler runner for `{}`",
                 args.app_bin.display()
             ),
             err,
@@ -71,7 +71,7 @@ pub fn flamegraph(args: FlamegraphArgs) -> Result<()> {
         )
     })?;
 
-    report_execution_outcome("simulator", &outcome);
+    report_execution_outcome("transpiler", &outcome);
     ui::field("flamegraph", flamegraph_output.display());
 
     Ok(())

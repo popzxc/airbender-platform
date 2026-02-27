@@ -113,8 +113,8 @@ Verification APIs can enforce expected public outputs (`x10..x17`) in addition t
 
 ## Runner Construction
 
-- `SimulatorRunnerBuilder::new(...)` accepts path and supports `with_cycles(...)`, `with_flamegraph(...)`, then `build()`.
-- `TranspilerRunnerBuilder::new(...)` accepts path and supports `with_cycles(...)`, `with_text_path(...)`, then `build()`.
+- `SimulatorRunnerBuilder::new(...)` accepts path and supports `with_cycles(...)`, then `build()`.
+- `TranspilerRunnerBuilder::new(...)` accepts path and supports `with_cycles(...)`, `with_text_path(...)`, `with_flamegraph(...)`, then `build()`.
 
 ## Cycle Budget
 
