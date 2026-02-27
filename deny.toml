@@ -8,7 +8,9 @@ db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
 yanked = "warn"
 ignore = [
-    "RUSTSEC-2024-0436" # `paste` unmaintained, not a risk for us
+    "RUSTSEC-2024-0436", # `paste` unmaintained, not a risk for us
+    "RUSTSEC-2024-0388", # `derivative` unmaintained, not a risk for us
+    "RUSTSEC-2025-0141", # `bincode` unmaintained, to be migrated to a new crate
 ]
 
 [licenses]
@@ -23,6 +25,7 @@ allow = [
     "BSD-2-Clause",
     "BSD-3-Clause",
     "OpenSSL",
+    "CDDL-1.0",
 ]
 confidence-threshold = 0.8
 exceptions = []
@@ -40,7 +43,7 @@ ignore = false
 registries = []
 
 [bans]
-multiple-versions = "warn"
+multiple-versions = "allow" # TODO: Temporarily, most of duplicates come from deps
 wildcards = "allow"
 highlight = "all"
 workspace-default-features = "allow"
