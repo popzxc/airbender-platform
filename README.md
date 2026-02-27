@@ -40,3 +40,17 @@ Complete guest + host examples are in [`examples/`](./examples/).
 ## Status
 
 This repository is under active development.
+
+## Policies
+
+- [Security policy](SECURITY.md)
+- [Contribution policy](CONTRIBUTING.md)
+
+## License
+
+Airbender Platform is distributed under the terms of either
+
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
+
+at your option.
